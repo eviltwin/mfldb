@@ -1,0 +1,61 @@
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.layout.BorderPane?>
+<?import org.fxmisc.richtext.CodeArea?>
+<?import uk.ac.imperial.doc.mfldb.ui.TreeViewWithItems?>
+<BorderPane fx:controller="uk.ac.imperial.doc.mfldb.ui.MainWindowController"
+            xmlns:fx="http://javafx.com/fxml">
+    <top>
+        <ToolBar>
+            <Button fx:id="runButton" text="Run" onAction="#onRun">
+                <graphic>
+                    <ImageView>
+                        <Image url="@run@2x.png"/>
+                    </ImageView>
+                </graphic>
+            </Button>
+            <Button fx:id="suspendButton" text="Suspend" onAction="#onSuspend" disable="true">
+                <graphic>
+                    <ImageView>
+                        <Image url="@suspend@2x.png"/>
+                    </ImageView>
+                </graphic>
+            </Button>
+            <Button fx:id="stopButton" text="Stop" onAction="#onEnd" disable="true">
+                <graphic>
+                    <ImageView>
+                        <Image url="@stop@2x.png"/>
+                    </ImageView>
+                </graphic>
+            </Button>
+            <Separator/>
+            <Button text="Step Over" disable="true">
+                <graphic>
+                    <ImageView>
+                        <Image url="@step_over@2x.png"/>
+                    </ImageView>
+                </graphic>
+            </Button>
+            <Button text="Step Into" disable="true">
+                <graphic>
+                    <ImageView>
+                        <Image url="@step_into@2x.png"/>
+                    </ImageView>
+                </graphic>
+            </Button>
+            <Button text="Step Out" disable="true">
+                <graphic>
+                    <ImageView>
+                        <Image url="@step_out@2x.png"/>
+                    </ImageView>
+                </graphic>
+            </Button>
+        </ToolBar>
+    </top>
+    <left>
+        <TreeViewWithItems fx:id="packageTree"/>
+    </left>
+    <center>
+        <CodeArea fx:id="codeArea" editable="false"/>
+    </center>
+</BorderPane>

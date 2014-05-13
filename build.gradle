@@ -1,0 +1,26 @@
+apply plugin: 'java'
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+version = '1.0'
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://oss.sonatype.org/content/repositories/snapshots/'
+    }
+    maven {
+        url 'http://clojars.org/repo/'
+    }
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.11'
+    compile group: 'org.fxmisc.richtext', name: 'richtextfx', version: '1.0.0-SNAPSHOT'
+    compile group: 'com.hypirion', name: 'io', version: '0.3.1'
+    compile files(getTools())
+}
+
+/** Returns the tools.jar/classes.jar of the Java runtime. */
+File getTools() {
+    return System.properties['os.name'].toLowerCase().contains('mac os') ? new File(System.properties['java.home'], '../classes/classes.jar') : new File(System.properties['java.home'], '../lib/tools.jar')
+}
