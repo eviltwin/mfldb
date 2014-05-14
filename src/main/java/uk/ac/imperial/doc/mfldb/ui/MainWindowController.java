@@ -51,23 +51,23 @@ public class MainWindowController {
     // Declare this as a lambda because removeListener() doesn't work with method references. Fucking JVM.
     private ChangeListener<DebugSession.State> debugSessionStateChanged = (observable, oldValue, newValue) -> {
         if (newValue == DebugSession.State.RUNNING && oldValue == DebugSession.State.READY) {
-            runButton.setText("Rerun");
-            runButton.setGraphic(new ImageView(new Image(getClass().getResourceAsStream("rerun@2x.png"))));
-            suspendButton.setText("Pause");
-            suspendButton.setGraphic(new ImageView(new Image(getClass().getResourceAsStream("suspend@2x.png"))));
+            runButton.setText(RERUN_BUTTON_LABEL);
+            runButton.setGraphic(new ImageView(RERUN_IMAGE));
+            suspendButton.setText(SUSPEND_BUTTON_LABEL);
+            suspendButton.setGraphic(new ImageView(SUSPEND_IMAGE));
             suspendButton.setDisable(false);
             stopButton.setDisable(false);
         } else if (newValue == DebugSession.State.SUSPENDED) {
-            suspendButton.setText("Resume");
-            suspendButton.setGraphic(new ImageView(new Image(getClass().getResourceAsStream("resume@2x.png"))));
+            suspendButton.setText(RESUME_BUTTON_LABEL);
+            suspendButton.setGraphic(new ImageView(RESUME_IMAGE));
         } else if (newValue == DebugSession.State.RUNNING && oldValue == DebugSession.State.SUSPENDED) {
-            suspendButton.setText("Pause");
-            suspendButton.setGraphic(new ImageView(new Image(getClass().getResourceAsStream("suspend@2x.png"))));
+            suspendButton.setText(SUSPEND_BUTTON_LABEL);
+            suspendButton.setGraphic(new ImageView(SUSPEND_IMAGE));
         } else if (newValue == DebugSession.State.TERMINATED) {
-            runButton.setText("Run");
-            runButton.setGraphic(new ImageView(new Image(getClass().getResourceAsStream("run@2x.png"))));
-            suspendButton.setText("Pause");
-            suspendButton.setGraphic(new ImageView(new Image(getClass().getResourceAsStream("suspend@2x.png"))));
+            runButton.setText(RUN_BUTTON_LABEL);
+            runButton.setGraphic(new ImageView(RUN_IMAGE));
+            suspendButton.setText(SUSPEND_BUTTON_LABEL);
+            suspendButton.setGraphic(new ImageView(SUSPEND_IMAGE));
             suspendButton.setDisable(true);
             stopButton.setDisable(true);
         }
@@ -79,7 +79,7 @@ public class MainWindowController {
         StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
         while (matcher.find()) {
             spansBuilder.add(Collections.emptyList(), matcher.start() - lastKwEnd);
-            spansBuilder.add(Collections.singleton("keyword"), matcher.end() - matcher.start());
+            spansBuilder.add(Collections.singleton(KEYWORD_CSS_CLASS), matcher.end() - matcher.start());
             lastKwEnd = matcher.end();
         }
         spansBuilder.add(Collections.emptyList(), text.length() - lastKwEnd);

@@ -23,6 +23,22 @@ final class Const {
     static final String PACKAGE_IMAGE_PATH = "package.png";
     static final Image PACKAGE_IMAGE = new Image(Const.class.getResourceAsStream(PACKAGE_IMAGE_PATH));
 
+    static final String RUN_BUTTON_LABEL = "Run";
+    static final String RUN_IMAGE_PATH = "run@2x.png";
+    static final Image RUN_IMAGE = new Image(Const.class.getResourceAsStream(RUN_IMAGE_PATH));
+
+    static final String RERUN_BUTTON_LABEL = "Rerun";
+    static final String RERUN_IMAGE_PATH = "rerun@2x.png";
+    static final Image RERUN_IMAGE = new Image(Const.class.getResourceAsStream(RERUN_IMAGE_PATH));
+
+    static final String SUSPEND_BUTTON_LABEL = "Pause";
+    static final String SUSPEND_IMAGE_PATH = "suspend@2x.png";
+    static final Image SUSPEND_IMAGE = new Image(Const.class.getResourceAsStream(SUSPEND_IMAGE_PATH));
+
+    static final String RESUME_BUTTON_LABEL = "Resume";
+    static final String RESUME_IMAGE_PATH = "resume@2x.png";
+    static final Image RESUME_IMAGE = new Image(Const.class.getResourceAsStream(RESUME_IMAGE_PATH));
+
     static final String JAVA_SYNTAX_CSS_PATH = "java-syntax.css";
 
     static final String[] KEYWORDS = new String[] {
@@ -39,6 +55,8 @@ final class Const {
     };
 
     static final Pattern KEYWORD_PATTERN = Pattern.compile("\\b(" + String.join("|", KEYWORDS) + ")\\b");
+
+    static final String KEYWORD_CSS_CLASS = "keyword";
 
     private Const() {
         // No instances
