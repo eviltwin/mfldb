@@ -53,6 +53,8 @@ public class MainWindowController {
         if (newValue == DebugSession.State.RUNNING && oldValue == DebugSession.State.READY) {
             runButton.setText("Rerun");
             runButton.setGraphic(new ImageView(new Image(getClass().getResourceAsStream("rerun@2x.png"))));
+            suspendButton.setText("Pause");
+            suspendButton.setGraphic(new ImageView(new Image(getClass().getResourceAsStream("suspend@2x.png"))));
             suspendButton.setDisable(false);
             stopButton.setDisable(false);
         } else if (newValue == DebugSession.State.SUSPENDED) {
@@ -113,7 +115,7 @@ public class MainWindowController {
 
     @FXML
     protected void onEnd(ActionEvent actionEvent) {
-        ensureEnded();
+        session.ensureEnded();
     }
 
     @FXML
