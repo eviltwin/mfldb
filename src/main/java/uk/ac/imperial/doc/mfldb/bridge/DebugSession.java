@@ -2,6 +2,7 @@ package uk.ac.imperial.doc.mfldb.bridge;
 
 import com.hypirion.io.Pipe;
 import com.hypirion.io.RevivableInputStream;
+import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.Bootstrap;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.connect.Connector;
@@ -35,7 +36,9 @@ public class DebugSession {
     /**
      * VirtualMachine under inspection
      */
-    private VirtualMachine vm;
+    private final VirtualMachine vm;
+
+    private final BreakpointManager breakpointManager;
 
     private Pipe inPipe;
     private Pipe errPipe;
@@ -55,6 +58,7 @@ public class DebugSession {
             throw new DebugSessionException(e);
         }
         vm.setDebugTraceMode(VirtualMachine.TRACE_NONE);
+        breakpointManager = new BreakpointManager(vm);
         redirectOutput();
         startEventThread();
 
@@ -66,7 +70,13 @@ public class DebugSession {
 
             @Override
             public void classPrepareEvent(ClassPrepareEvent event) {
-
+                try {
+                    breakpointManager.resolveDeferred(event);
+                } catch (LineNotFoundException e) {
+                    e.printStackTrace();
+                } catch (AbsentInformationException e) {
+                    e.printStackTrace();
+                }
             }
 
             @Override
@@ -79,6 +89,10 @@ public class DebugSession {
                 Platform.runLater(() -> state.set(State.TERMINATED));
             }
         });
+    }
+
+    public void addBreakPoint(BreakpointSpec spec) throws LineNotFoundException, AbsentInformationException {
+        breakpointManager.addBreakpoint(spec);
     }
 
     public void ensureEnded() {

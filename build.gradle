@@ -15,7 +15,10 @@ repositories {
 
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.11'
+    testCompile group: 'org.truth0', name: 'truth', version: '0.20'
+    testCompile group: 'org.mockito', name: 'mockito-all', version: '1.9.5'
     compile group: 'org.fxmisc.richtext', name: 'richtextfx', version: '1.0.0-SNAPSHOT'
+    compile group: 'com.google.guava', name: 'guava', version: '17.0'
     compile group: 'com.hypirion', name: 'io', version: '0.3.1'
     compile files(getTools())
 }
