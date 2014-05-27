@@ -20,7 +20,6 @@ public class EventThread extends Thread {
     EventThread(VirtualMachine vm) {
         super("JDI Event Dispatch");
         this.vm = vm;
-        enableEventRequests();
     }
 
     /**
@@ -44,18 +43,6 @@ public class EventThread extends Thread {
                 break;
             }
         }
-    }
-
-    /**
-     * Create the desired event requests, and enable
-     * them so that we will get events.
-     */
-    private void enableEventRequests() {
-        EventRequestManager mgr = vm.eventRequestManager();
-
-        ClassPrepareRequest cpr = mgr.createClassPrepareRequest();
-        cpr.setSuspendPolicy(EventRequest.SUSPEND_NONE);
-        cpr.enable();
     }
 
     /**
