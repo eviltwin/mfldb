@@ -105,6 +105,25 @@ public class BreakpointManagerTest {
     }
 
     /**
+     * Tests the immediate resolution of a breakpoint for a class which has already been prepared.
+     */
+    @Test
+    public void resolvesImmediately() throws LineNotFoundException, AbsentInformationException {
+        // Given
+        TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
+        BreakpointSpec spec = new BreakpointSpec(c.name, 67);
+
+        // When
+        c.makePrepared();
+        manager.addBreakpoint(spec);
+
+        // Then
+        mockVM.verifyEventLog(
+                createdBreakpointRequest(c, spec)
+        );
+    }
+
+    /**
      * Tests the deferral of two breakpoints and then their subsequent resolution.
      */
     @Test
