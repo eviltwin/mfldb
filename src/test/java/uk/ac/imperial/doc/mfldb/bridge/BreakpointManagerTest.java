@@ -2,6 +2,7 @@ package uk.ac.imperial.doc.mfldb.bridge;
 
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.Location;
+import com.sun.jdi.event.ClassPrepareEvent;
 import com.sun.jdi.request.EventRequest;
 import org.junit.Test;
 import uk.ac.imperial.doc.mfldb.bridge.mockvm.Event;
@@ -95,6 +96,32 @@ public class BreakpointManagerTest {
         // When
         manager.addBreakpoint(spec);
         manager.resolveDeferred(c.makePrepared());
+
+        // Then
+        mockVM.verifyEventLog(
+                createdClassPrepareRequest(c.name),
+                createdBreakpointRequest(c, spec),
+                vmResumed()
+        );
+    }
+
+    /**
+     * Ensure that already resolved breakpoints aren't re-resolved.
+     *
+     * The rationale here is that a second ClassPrepareRequest could have come from elsewhere in application and so two
+     * identical ClassPrepareEvents could make their way to the BreakpointManager.
+     */
+    @Test
+    public void doesNotResolveTwice() throws LineNotFoundException, AbsentInformationException {
+        // Given
+        TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
+        BreakpointSpec spec = new BreakpointSpec(c.name, 67);
+
+        // When
+        manager.addBreakpoint(spec);
+        ClassPrepareEvent event = c.makePrepared();
+        manager.resolveDeferred(event);
+        manager.resolveDeferred(event);
 
         // Then
         mockVM.verifyEventLog(

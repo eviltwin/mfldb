@@ -38,14 +38,13 @@ class BreakpointManager {
     }
 
     public void resolveDeferred(ClassPrepareEvent event) throws LineNotFoundException, AbsentInformationException {
-        Collection<BreakpointSpec> specs = deferredBreakpoints.get(event.referenceType().name());
-        if (specs != null) {
+        Collection<BreakpointSpec> specs = deferredBreakpoints.removeAll(event.referenceType().name());
+        if (specs != null && !specs.isEmpty()) {
             for (BreakpointSpec spec : specs) {
                 createBreakpointRequest(spec);
             }
+            vm.resume();
         }
-        vm.eventRequestManager().deleteEventRequest(event.request());
-        vm.resume();
     }
 
     private ClassPrepareRequest createClassPrepareRequest(BreakpointSpec spec) {
