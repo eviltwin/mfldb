@@ -180,4 +180,48 @@ public class BreakpointManagerTest {
                 vmResumed()
         );
     }
+
+    /**
+     * Tests that only one ClassPrepareRequest is created for two breakpoints in the same unprepared class.
+     */
+    @Test
+    public void defersTwoWithOneRequest() throws LineNotFoundException, AbsentInformationException {
+        // Given
+        TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
+        BreakpointSpec spec1 = new BreakpointSpec(c.name, 67);
+        BreakpointSpec spec2 = new BreakpointSpec(c.name, 34);
+
+        // When
+        manager.addBreakpoint(spec1);
+        manager.addBreakpoint(spec2);
+
+        // Then
+        mockVM.verifyEventLog(
+                createdClassPrepareRequest(c.name)
+        );
+    }
+
+    /**
+     * Tests that both deferred breakpoints for a single class are resolved once the class is prepared.
+     */
+    @Test
+    public void defersAndResolvesTwoWithOneRequest() throws LineNotFoundException, AbsentInformationException {
+        // Given
+        TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
+        BreakpointSpec spec1 = new BreakpointSpec(c.name, 67);
+        BreakpointSpec spec2 = new BreakpointSpec(c.name, 34);
+
+        // When
+        manager.addBreakpoint(spec1);
+        manager.addBreakpoint(spec2);
+        manager.resolveDeferred(c.makePrepared());
+
+        // Then
+        mockVM.verifyEventLog(
+                createdClassPrepareRequest(c.name),
+                createdBreakpointRequest(c, spec1),
+                createdBreakpointRequest(c, spec2),
+                vmResumed()
+        );
+    }
 }

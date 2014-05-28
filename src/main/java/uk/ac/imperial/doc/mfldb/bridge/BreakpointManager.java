@@ -30,7 +30,9 @@ class BreakpointManager {
         BreakpointRequest breakpointRequest = createBreakpointRequest(spec);
         if (breakpointRequest == null) {
             // Could not create the request, defer
-            createClassPrepareRequest(spec);
+            if (!deferredBreakpoints.containsKey(spec.className)) {
+                createClassPrepareRequest(spec);
+            }
             deferredBreakpoints.put(spec.className, spec);
         }
     }
