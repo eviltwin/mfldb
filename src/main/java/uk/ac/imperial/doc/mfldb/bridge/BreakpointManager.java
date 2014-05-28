@@ -15,17 +15,39 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Created by graham on 23/05/14.
+ * Manages deferral and resolution of pending breakpoints.
  */
 class BreakpointManager {
 
+    /**
+     * Map from class name to specification of deferred breakpoints.
+     */
     private final Multimap<String, BreakpointSpec> deferredBreakpoints = ArrayListMultimap.create();
+
+    /**
+     * The VirtualMachine for which this object is managing the breakpoints of.
+     */
     private final VirtualMachine vm;
 
+    /**
+     * Constructs a new BreakpointManager wrapping a given VirtualMachine.
+     *
+     * @param vm The VirtualMachine to be managed.
+     */
     BreakpointManager(VirtualMachine vm) {
         this.vm = vm;
     }
 
+    /**
+     * Adds a breakpoint to the VirtualMachine.
+     * <p>
+     * The actual creation of the breakpoint may be deferred if the class in question has not yet been prepared by the
+     * VirtualMachine.
+     *
+     * @param spec The specification of the breakpoint to be added.
+     * @throws LineNotFoundException
+     * @throws AbsentInformationException
+     */
     void addBreakpoint(BreakpointSpec spec) throws LineNotFoundException, AbsentInformationException {
         BreakpointRequest breakpointRequest = createBreakpointRequest(spec);
         if (breakpointRequest == null) {
@@ -37,6 +59,13 @@ class BreakpointManager {
         }
     }
 
+    /**
+     * Resolves any deferred breakpoints waiting on this class.
+     *
+     * @param event Event describing which class should have its deferred breakpoints added.
+     * @throws LineNotFoundException      If the line specified in the breakpoint couldn't be found.
+     * @throws AbsentInformationException If the VirtualMachine didn't have the required information.
+     */
     public void resolveDeferred(ClassPrepareEvent event) throws LineNotFoundException, AbsentInformationException {
         Collection<BreakpointSpec> specs = deferredBreakpoints.removeAll(event.referenceType().name());
         if (specs != null && !specs.isEmpty()) {
@@ -47,6 +76,12 @@ class BreakpointManager {
         }
     }
 
+    /**
+     * Helper to create a ClassPreparedRequest for a breakpoint being deferred.
+     *
+     * @param spec The breakpoint being deferred.
+     * @return The created ClassPreparedRequest.
+     */
     private ClassPrepareRequest createClassPrepareRequest(BreakpointSpec spec) {
         ClassPrepareRequest request = vm.eventRequestManager().createClassPrepareRequest();
         request.addClassFilter(spec.className);
@@ -56,6 +91,14 @@ class BreakpointManager {
         return request;
     }
 
+    /**
+     * Helper to create a BreakpointRequest for a breakpoint being (potentially) resolved.
+     *
+     * @param spec The breakpoint being resolved.
+     * @return The created BreakpointRequest or null if deferral is necessary.
+     * @throws LineNotFoundException      If the line specified in the breakpoint couldn't be found.
+     * @throws AbsentInformationException If the VirtualMachine didn't have the required information.
+     */
     private BreakpointRequest createBreakpointRequest(BreakpointSpec spec) throws LineNotFoundException, AbsentInformationException {
         ReferenceType refType = vm.classesByName(spec.className).stream()
                 .filter(t -> t.isPrepared())
