@@ -1,184 +1,164 @@
 package uk.ac.imperial.doc.mfldb.bridge;
 
-import com.google.common.collect.ImmutableList;
-import com.sun.jdi.*;
-import com.sun.jdi.event.ClassPrepareEvent;
-import com.sun.jdi.request.BreakpointRequest;
-import com.sun.jdi.request.ClassPrepareRequest;
+import com.sun.jdi.AbsentInformationException;
+import com.sun.jdi.Location;
 import com.sun.jdi.request.EventRequest;
-import com.sun.jdi.request.EventRequestManager;
-import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import uk.ac.imperial.doc.mfldb.bridge.mockvm.Event;
+import uk.ac.imperial.doc.mfldb.bridge.mockvm.MockVM;
+import uk.ac.imperial.doc.mfldb.bridge.mockvm.TestClass;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.function.Consumer;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
 import static org.truth0.Truth.ASSERT;
+import static uk.ac.imperial.doc.mfldb.bridge.mockvm.MockVM.vmResumed;
 
-@RunWith(MockitoJUnitRunner.class)
+/**
+ * Tests for the BreakpointManager class.
+ * <p>
+ * Tests generally exercise the BreakpointManager's deferral of creating a BreakpointRequest until the class in question
+ * has been loaded. Such deferral is achieved by creating a ClassPrepareRequest for the respective class and inserting
+ * the deferred breakpoint when the corresponding ClassPrepareEvent is received. Only one such ClassPrepareRequest
+ * should be created per class with pending breakpoints (ie an extra request shouldn't be created if one is already
+ * pending and a second breakpoint is added (and deferred) for that same class.
+ * <p>
+ * Verification of proper deferral is done with the {@link #createdClassPrepareRequest(String)} method and verification
+ * of resolved BreakpointRequests is done with {@link #createdBreakpointRequest(uk.ac.imperial.doc.mfldb.bridge.mockvm.TestClass, BreakpointSpec)}
+ */
 public class BreakpointManagerTest {
 
-    @Mock
-    private VirtualMachine vm;
+    /**
+     * Helps to create a mocked VirtualMachine for the BreakpointManager under test to wrap.
+     */
+    private MockVM mockVM = new MockVM();
 
-    private List<ReferenceType> referenceTypes = new ArrayList<>();
+    /**
+     * The BreakpointManager under test.
+     */
+    private BreakpointManager manager = new BreakpointManager(mockVM.getVirtualMachine());
 
-    @Mock
-    private EventRequestManager eventRequestManager;
-
-    private List<ClassPrepareRequest> classPrepareRequests = new ArrayList<>();
-    private List<BreakpointRequest> breakpointRequests = new ArrayList<>();
-
-    private BreakpointManager manager;
-
-    @Before
-    public void setup() {
-        // Mock returning loaded reference types
-        when(vm.allClasses()).thenReturn(Collections.unmodifiableList(referenceTypes));
-        when(vm.classesByName(any())).then(invokation -> Collections.unmodifiableList(referenceTypes.stream()
-                .filter(referenceType -> referenceType.name().equals(invokation.getArguments()[0]))
-                .collect(Collectors.toList())));
-
-        // Mock the event request manager
-        when(vm.eventRequestManager()).thenReturn(eventRequestManager);
-        when(eventRequestManager.createClassPrepareRequest()).then(invocation -> {
-            ClassPrepareRequest request = mock(ClassPrepareRequest.class);
-            classPrepareRequests.add(request);
-            return request;
+    /**
+     * Verifies that a BreakpointRequest was created correctly for the given TestClass and BreakpointSpec.
+     *
+     * @param testClass The test class returned from the MockVM, corresponding to the class named in the spec.
+     * @param spec      The BreakpointSpec which was given to the BreakpointManager to cause this event.
+     */
+    private static Consumer<Event> createdBreakpointRequest(TestClass testClass, BreakpointSpec spec) {
+        return MockVM.createdBreakpointRequest(request -> {
+            Location location = testClass.locationsOfLine(spec.lineNumber).get(0);
+            ASSERT.that(request.location()).isEqualTo(location);
         });
-        when(eventRequestManager.createBreakpointRequest(any())).then(invocation -> {
-            BreakpointRequest request = mock(BreakpointRequest.class);
-            when(request.location()).thenReturn((Location) invocation.getArguments()[0]);
-            breakpointRequests.add(request);
-            return request;
-        });
-
-        // Instantiate the manager here, once the vm has been appropriately mocked.
-        manager = new BreakpointManager(vm);
     }
 
+    /**
+     * Verifies that a ClassPrepareRequest was created correctly to defer creation of breakpoints for the named class.
+     *
+     * @param className The name of the class this request should be deferring breakpoints for.
+     */
+    private static Consumer<Event> createdClassPrepareRequest(String className) {
+        return MockVM.createdClassPrepareRequest(request -> {
+            verify(request).addClassFilter(className);
+            verify(request).addCountFilter(1);
+            verify(request).setSuspendPolicy(EventRequest.SUSPEND_ALL);
+            verify(request).enable();
+        });
+    }
+
+    /**
+     * Tests that the BreakpointManager will defer the addition of a breakpoint for a class that isn't loaded yet.
+     */
     @Test
     public void defersUntilLater() throws LineNotFoundException, AbsentInformationException {
-        BreakpointSpec spec = new BreakpointSpec("foo.bar.baz", 67);
+        // Given
+        TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
+        BreakpointSpec spec = new BreakpointSpec(c.name, 67);
 
+        // When
         manager.addBreakpoint(spec);
 
-        // Verify that no BreakPointRequests were created yet and a correct ClassPrepareRequest was made
-        ASSERT.that(breakpointRequests.size()).is(0);
-        ASSERT.that(classPrepareRequests.size()).is(1);
-        verifyClassPrepareRequest(spec, 0);
-
-        // Resolve the pending breakpoint with a ClassPrepareEvent
-        manager.resolveDeferred(mockPrepareClass(spec.className, 0));
-        ASSERT.that(breakpointRequests.size()).is(1);
-        verifyBreakpointRequest(spec, 0, 0);
-        verifyAllResolved();
+        // Then
+        mockVM.verifyEventLog(
+                createdClassPrepareRequest(c.name)
+        );
     }
 
+    /**
+     * Tests the deferral and then resolution of a single breakpoint.
+     */
     @Test
-    public void defersTwoUntilLater() throws LineNotFoundException, AbsentInformationException {
-        BreakpointSpec spec1 = new BreakpointSpec("foo.bar.baz", 67);
-        BreakpointSpec spec2 = new BreakpointSpec("foo.bar.qux", 45);
+    public void defersAndResolves() throws LineNotFoundException, AbsentInformationException {
+        // Given
+        TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
+        BreakpointSpec spec = new BreakpointSpec(c.name, 67);
 
+        // When
+        manager.addBreakpoint(spec);
+        manager.resolveDeferred(c.makePrepared());
+
+        // Then
+        mockVM.verifyEventLog(
+                createdClassPrepareRequest(c.name),
+                createdBreakpointRequest(c, spec),
+                vmResumed()
+        );
+    }
+
+    /**
+     * Tests the deferral of two breakpoints and then their subsequent resolution.
+     */
+    @Test
+    public void defersAndResolvesTwo() throws LineNotFoundException, AbsentInformationException {
+        // Given
+        TestClass c1 = mockVM.addTestClass("foo.bar.baz", 107);
+        TestClass c2 = mockVM.addTestClass("foo.bar.qux", 204);
+        BreakpointSpec spec1 = new BreakpointSpec(c1.name, 67);
+        BreakpointSpec spec2 = new BreakpointSpec(c2.name, 45);
+
+        // When
         manager.addBreakpoint(spec1);
         manager.addBreakpoint(spec2);
 
-        // Verify that no BreakPointRequests were created and the correct ClassPrepareRequests were made
-        verify(eventRequestManager, never()).createBreakpointRequest(any());
-        ASSERT.that(classPrepareRequests.size()).is(2);
-        verifyClassPrepareRequest(spec1, 0);
-        verifyClassPrepareRequest(spec2, 1);
+        manager.resolveDeferred(c1.makePrepared());
+        manager.resolveDeferred(c2.makePrepared());
 
-        // Resolve the pending breakpoints with ClassPrepareEvents, in order
-        manager.resolveDeferred(mockPrepareClass(spec1.className, 0));
-        ASSERT.that(breakpointRequests.size()).is(1);
-        verifyBreakpointRequest(spec1, 0, 0);
-
-        manager.resolveDeferred(mockPrepareClass(spec2.className, 1));
-        ASSERT.that(breakpointRequests.size()).is(2);
-        verifyBreakpointRequest(spec2, 1, 1);
-
-        verifyAllResolved();
+        // Then
+        mockVM.verifyEventLog(
+                createdClassPrepareRequest(c1.name),
+                createdClassPrepareRequest(c2.name),
+                createdBreakpointRequest(c1, spec1),
+                vmResumed(),
+                createdBreakpointRequest(c2, spec2),
+                vmResumed()
+        );
     }
 
+    /**
+     * Tests the deferral of two breakpoints and then their subsequent resolution in the opposite order.
+     */
     @Test
-    public void defersTwoUntilLaterReversed() throws LineNotFoundException, AbsentInformationException {
-        BreakpointSpec spec1 = new BreakpointSpec("foo.bar.baz", 67);
-        BreakpointSpec spec2 = new BreakpointSpec("foo.bar.qux", 45);
+    public void defersAndResolvesTwoReversed() throws LineNotFoundException, AbsentInformationException {
+        // Given
+        TestClass c1 = mockVM.addTestClass("foo.bar.baz", 107);
+        TestClass c2 = mockVM.addTestClass("foo.bar.qux", 204);
+        BreakpointSpec spec1 = new BreakpointSpec(c1.name, 67);
+        BreakpointSpec spec2 = new BreakpointSpec(c2.name, 45);
 
+        // When
         manager.addBreakpoint(spec1);
         manager.addBreakpoint(spec2);
 
-        // Verify that no BreakPointRequests were created and the correct ClassPrepareRequests were made
-        verify(eventRequestManager, never()).createBreakpointRequest(any());
-        ASSERT.that(classPrepareRequests.size()).is(2);
-        verifyClassPrepareRequest(spec1, 0);
-        verifyClassPrepareRequest(spec2, 1);
+        manager.resolveDeferred(c2.makePrepared());
+        manager.resolveDeferred(c1.makePrepared());
 
-        // Resolve the pending breakpoints with ClassPrepareEvents, in order
-        manager.resolveDeferred(mockPrepareClass(spec2.className, 1));
-        ASSERT.that(breakpointRequests.size()).is(1);
-        verifyBreakpointRequest(spec2, 0, 0);
-
-        manager.resolveDeferred(mockPrepareClass(spec1.className, 0));
-        ASSERT.that(breakpointRequests.size()).is(2);
-        verifyBreakpointRequest(spec1, 1, 1);
-
-        verifyAllResolved();
-    }
-
-    private ClassPrepareEvent mockPrepareClass(String name, int index) {
-        ReferenceType type = mock(ReferenceType.class);
-        when(type.name()).thenReturn(name);
-        when(type.isPrepared()).thenReturn(true);
-        try {
-            Map<Integer, List<Location>> mapping = new HashMap<>();
-            when(type.locationsOfLine(anyInt())).then(invocation -> {
-                Integer line = (Integer) invocation.getArguments()[0];
-
-                List<Location> result = mapping.get(line);
-                if (result == null) {
-                    Location location = mock(Location.class);
-                    when(location.method()).thenReturn(mock(Method.class));
-                    result = ImmutableList.of(location);
-                    mapping.put(line, result);
-                }
-                return result;
-            });
-        } catch (AbsentInformationException e) {
-            // This should never, ever happen. If it does, throw as RuntimeException so that the test fails.
-            throw new RuntimeException(e);
-        }
-        referenceTypes.add(type);
-
-        ClassPrepareEvent event = mock(ClassPrepareEvent.class);
-        when(event.referenceType()).thenReturn(type);
-        when(event.request()).thenReturn(classPrepareRequests.get(index));
-
-        return event;
-    }
-
-    private void verifyBreakpointRequest(BreakpointSpec spec, int breakpointIndex, int referenceTypeIndex) throws AbsentInformationException {
-        ReferenceType referenceType = referenceTypes.get(referenceTypeIndex);
-        Location location = referenceType.locationsOfLine(spec.lineNumber).get(0);
-        ASSERT.that(breakpointRequests.get(breakpointIndex).location()).isEqualTo(location);
-    }
-
-    private void verifyClassPrepareRequest(BreakpointSpec spec, int index) {
-        ClassPrepareRequest request = classPrepareRequests.get(index);
-        verify(request).addClassFilter(spec.className);
-        verify(request).addCountFilter(1);
-        verify(request).setSuspendPolicy(EventRequest.SUSPEND_ALL);
-        verify(request).enable();
-    }
-
-    private void verifyAllResolved() {
-        classPrepareRequests.forEach(request -> verify(eventRequestManager).deleteEventRequest(request));
-        verify(vm, times(classPrepareRequests.size())).resume();
+        // Then
+        mockVM.verifyEventLog(
+                createdClassPrepareRequest(c1.name),
+                createdClassPrepareRequest(c2.name),
+                createdBreakpointRequest(c2, spec2),
+                vmResumed(),
+                createdBreakpointRequest(c1, spec1),
+                vmResumed()
+        );
     }
 }
