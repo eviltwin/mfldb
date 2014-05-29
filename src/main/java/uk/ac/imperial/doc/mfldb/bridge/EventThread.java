@@ -53,6 +53,8 @@ public class EventThread extends Thread {
             for (JDIEventListener listener : eventListeners) {
                 if (event instanceof ClassPrepareEvent) {
                     listener.classPrepareEvent((ClassPrepareEvent) event);
+                } else if (event instanceof BreakpointEvent) {
+                    listener.breakpointEvent((BreakpointEvent) event);
                 } else if (event instanceof VMStartEvent) {
                     listener.vmStartEvent((VMStartEvent) event);
                 } else if (event instanceof VMDeathEvent) {

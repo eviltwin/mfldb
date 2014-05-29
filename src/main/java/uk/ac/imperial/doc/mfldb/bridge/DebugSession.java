@@ -9,10 +9,8 @@ import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.LaunchingConnector;
 import com.sun.jdi.connect.VMStartException;
-import com.sun.jdi.event.ClassPrepareEvent;
-import com.sun.jdi.event.VMDeathEvent;
-import com.sun.jdi.event.VMDisconnectEvent;
-import com.sun.jdi.event.VMStartEvent;
+import com.sun.jdi.event.*;
+import com.sun.jdi.request.EventRequest;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -76,6 +74,13 @@ public class DebugSession {
                     e.printStackTrace();
                 } catch (AbsentInformationException e) {
                     e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void breakpointEvent(BreakpointEvent event) {
+                if (event.request().suspendPolicy() == EventRequest.SUSPEND_ALL) {
+                    Platform.runLater(() -> state.set(State.SUSPENDED));
                 }
             }
 

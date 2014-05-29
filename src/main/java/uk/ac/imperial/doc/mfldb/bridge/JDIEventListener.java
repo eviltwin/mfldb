@@ -14,6 +14,7 @@ import java.util.List;
 public interface JDIEventListener {
     void vmStartEvent(VMStartEvent event);
     void classPrepareEvent(ClassPrepareEvent event);
+    void breakpointEvent(BreakpointEvent event);
     void vmDeathEvent(VMDeathEvent event);
     void vmDisconnectEvent(VMDisconnectEvent event);
 }
