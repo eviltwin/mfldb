@@ -5,7 +5,9 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import uk.ac.imperial.doc.mfldb.util.ResourceURLStreamHandlerFactory;
 
+import java.net.URL;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,6 +23,9 @@ public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
+        // Add our own URL handling for custom URLs in WebView content.
+        URL.setURLStreamHandlerFactory(new ResourceURLStreamHandlerFactory());
+
         FXMLLoader loader = new FXMLLoader(getClass().getResource(MAIN_WINDOW_FXML));
         Parent root = loader.load();
 
