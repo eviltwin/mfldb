@@ -6,11 +6,8 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.TreeItem;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import org.fxmisc.richtext.CodeArea;
-import org.fxmisc.richtext.StyleSpans;
-import org.fxmisc.richtext.StyleSpansBuilder;
+import javafx.scene.web.WebView;
 import uk.ac.imperial.doc.mfldb.bridge.DebugSession;
 import uk.ac.imperial.doc.mfldb.bridge.DebugSessionException;
 import uk.ac.imperial.doc.mfldb.packagetree.Class;
@@ -21,9 +18,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.regex.Matcher;
 
 import static uk.ac.imperial.doc.mfldb.ui.Const.*;
 
@@ -42,8 +36,9 @@ public class MainWindowController {
     protected TreeViewWithItems<PackageTreeItem> packageTree;
 
     @FXML
-    protected CodeArea codeArea;
+    protected WebView codeArea;
 
+    private CodeAreaController codeAreaController;
     private DebugSession session;
     private Package rootPackage;
     private String cmd;
@@ -73,19 +68,6 @@ public class MainWindowController {
         }
     };
 
-    private static StyleSpans<Collection<String>> computeHighlighting(String text) {
-        Matcher matcher = KEYWORD_PATTERN.matcher(text);
-        int lastKwEnd = 0;
-        StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
-        while (matcher.find()) {
-            spansBuilder.add(Collections.emptyList(), matcher.start() - lastKwEnd);
-            spansBuilder.add(Collections.singleton(KEYWORD_CSS_CLASS), matcher.end() - matcher.start());
-            lastKwEnd = matcher.end();
-        }
-        spansBuilder.add(Collections.emptyList(), text.length() - lastKwEnd);
-        return spansBuilder.create();
-    }
-
     public void ensureEnded() {
         if (session != null) {
             // Remove the session state changed event handler to avoid handling stale queued events
@@ -109,8 +91,7 @@ public class MainWindowController {
         packageTree.setTreeItemFactory(this::treeItemFactory);
         packageTree.getSelectionModel().selectedItemProperty().addListener(this::packageTreeSelectionChanged);
         packageTree.setRoot(treeItemFactory(rootPackage));
-
-        codeArea.textProperty().addListener((obs, oldText, newText) -> codeArea.setStyleSpans(0, computeHighlighting(newText)));
+        codeAreaController = new CodeAreaController(codeArea);
     }
 
     @FXML
@@ -155,7 +136,7 @@ public class MainWindowController {
             Path javaFile = ((Class) item).getJavaFilePath();
             if (javaFile != null && Files.isReadable(javaFile)) {
                 try {
-                    codeArea.replaceText(new String(Files.readAllBytes(javaFile)));
+                    codeAreaController.replaceText(new String(Files.readAllBytes(javaFile)));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

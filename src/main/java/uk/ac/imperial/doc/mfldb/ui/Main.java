@@ -35,7 +35,6 @@ public class Main extends Application {
         controller.setCmd(cmd);
 
         Scene scene = new Scene(root, MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT);
-        scene.getStylesheets().add(getClass().getResource(JAVA_SYNTAX_CSS_PATH).toExternalForm());
         primaryStage.setTitle(MAIN_WINDOW_TITLE);
         primaryStage.setScene(scene);
         primaryStage.show();
