@@ -100,6 +100,10 @@ public class DebugSession {
         breakpointManager.addBreakpoint(spec);
     }
 
+    public void removeBreakpoint(BreakpointSpec spec) {
+        breakpointManager.removeBreakpoint(spec);
+    }
+
     public void ensureEnded() {
         if (getState() != State.TERMINATED) {
             vm.exit(0);

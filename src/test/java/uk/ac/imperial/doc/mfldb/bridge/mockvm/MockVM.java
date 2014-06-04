@@ -4,6 +4,7 @@ import com.sun.jdi.Location;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.BreakpointRequest;
 import com.sun.jdi.request.ClassPrepareRequest;
+import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.EventRequestManager;
 
 import java.util.ArrayList;
@@ -53,60 +54,26 @@ public class MockVM {
                 .filter(t -> t.isPrepared())
                 .filter(t -> t.name().equals(invocation.getArguments()[0]))
                 .collect(Collectors.toList()));
-        doAnswer(invocation -> events.add(new VMResumeEvent())).when(vm).resume();
+        doAnswer(invocation -> events.add(new Event.VMResumeEvent())).when(vm).resume();
 
         // Mock the EventRequestManager
         EventRequestManager eventRequestManager = mock(EventRequestManager.class);
         when(vm.eventRequestManager()).thenReturn(eventRequestManager);
         when(eventRequestManager.createClassPrepareRequest()).then(invocation -> {
             ClassPrepareRequest request = mock(ClassPrepareRequest.class);
-            events.add(new CreateClassPrepareRequestEvent(request));
+            events.add(new Event.CreateClassPrepareRequestEvent(request));
             return request;
         });
         when(eventRequestManager.createBreakpointRequest(any())).then(invocation -> {
             BreakpointRequest request = mock(BreakpointRequest.class);
             when(request.location()).thenReturn((Location) invocation.getArguments()[0]);
-            events.add(new CreateBreakpointRequestEvent(request));
+            events.add(new Event.CreateBreakpointRequestEvent(request));
             return request;
         });
-    }
-
-    /**
-     * Verify that the mock VirtualMachine was resumed at this point in the event log.
-     *
-     * @return A Consumer which to verify the Event.
-     */
-    public static Consumer<Event> vmResumed() {
-        return event -> ASSERT.withFailureMessage(String.format("Found event %s when expecting VMResumeEvent", event.toString()))
-                .that(event instanceof VMResumeEvent).isTrue();
-    }
-
-    /**
-     * Verify that a BreakpointRequest was created at this point in the event log.
-     *
-     * @param callback A callback which can optionally verify the mocked BreakpointRequest
-     * @return A Consumer which to verify the Event.
-     */
-    public static Consumer<Event> createdBreakpointRequest(Consumer<BreakpointRequest> callback) {
-        return event -> {
-            ASSERT.withFailureMessage(String.format("Found event %s when expecting CreateBreakpointRequestEvent", event.toString()))
-                    .that(event instanceof CreateBreakpointRequestEvent).isTrue();
-            callback.accept(((CreateBreakpointRequestEvent) event).request);
-        };
-    }
-
-    /**
-     * Verify that a ClassPrepareRequest was created at this point in the event log.
-     *
-     * @param callback A callback which can optionally verify the mocked ClassPrepareRequest
-     * @return A Consumer which to verify the Event.
-     */
-    public static Consumer<Event> createdClassPrepareRequest(Consumer<ClassPrepareRequest> callback) {
-        return event -> {
-            ASSERT.withFailureMessage(String.format("Found event %s when expecting CreateClassPrepareRequestEvent", event.toString()))
-                    .that(event instanceof CreateClassPrepareRequestEvent).isTrue();
-            callback.accept(((CreateClassPrepareRequestEvent) event).request);
-        };
+        doAnswer(invocation -> {
+            events.add(new Event.DeletedEventRequestEvent(((EventRequest) invocation.getArguments()[0])));
+            return null;
+        }).when(eventRequestManager).deleteEventRequest(any());
     }
 
     /**
@@ -141,7 +108,8 @@ public class MockVM {
      *
      * @param verifiers Var-args of Consumers to verify each event in turn.
      */
-    public void verifyEventLog(Consumer<Event>... verifiers) {
+    @SafeVarargs
+    public final void verifyEventLog(Consumer<Event>... verifiers) {
         ASSERT.withFailureMessage(String.format("MockVM event log has %d items but %d verifiers were provided", events.size(), verifiers.length))
                 .that(verifiers.length).is(events.size());
         for (int i = 0; i < verifiers.length; i++) {

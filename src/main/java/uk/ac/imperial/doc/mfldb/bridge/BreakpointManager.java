@@ -12,7 +12,9 @@ import com.sun.jdi.request.ClassPrepareRequest;
 import com.sun.jdi.request.EventRequest;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Manages deferral and resolution of pending breakpoints.
@@ -23,6 +25,16 @@ class BreakpointManager {
      * Map from class name to specification of deferred breakpoints.
      */
     private final Multimap<String, BreakpointSpec> deferredBreakpoints = ArrayListMultimap.create();
+
+    /**
+     * Map from class name to ClassPrepareRequest
+     */
+    private final Map<String, ClassPrepareRequest> classPrepareRequests = new HashMap<>();
+
+    /**
+     * Map from BreakpointSpec to the resolved BreakpointRequest
+     */
+    private final Map<BreakpointSpec, BreakpointRequest> resolvedBreakpoints = new HashMap<>();
 
     /**
      * The VirtualMachine for which this object is managing the breakpoints of.
@@ -53,9 +65,33 @@ class BreakpointManager {
         if (breakpointRequest == null) {
             // Could not create the request, defer
             if (!deferredBreakpoints.containsKey(spec.className)) {
-                createClassPrepareRequest(spec);
+                classPrepareRequests.put(spec.className, createClassPrepareRequest(spec));
             }
             deferredBreakpoints.put(spec.className, spec);
+        } else {
+            resolvedBreakpoints.put(spec, breakpointRequest);
+        }
+    }
+
+    /**
+     * Removes a breakpoint from the VirtualMachine
+     *
+     * This may delete a breakpoint which is still deferred and prevent it ever being resolved, or may deleted a
+     * breakpoint
+     * @param spec
+     */
+    public void removeBreakpoint(BreakpointSpec spec) {
+        // If it's been resolved...
+        BreakpointRequest breakpointRequest = resolvedBreakpoints.remove(spec);
+        if (breakpointRequest != null) {
+            vm.eventRequestManager().deleteEventRequest(breakpointRequest);
+        }
+
+        // If it's still deferred...
+        deferredBreakpoints.remove(spec.className, spec);
+        if (!deferredBreakpoints.containsKey(spec.className) && classPrepareRequests.containsKey(spec.className)) {
+            ClassPrepareRequest classPrepareRequest = classPrepareRequests.remove(spec.className);
+            vm.eventRequestManager().deleteEventRequest(classPrepareRequest);
         }
     }
 
@@ -70,8 +106,9 @@ class BreakpointManager {
         Collection<BreakpointSpec> specs = deferredBreakpoints.removeAll(event.referenceType().name());
         if (specs != null && !specs.isEmpty()) {
             for (BreakpointSpec spec : specs) {
-                createBreakpointRequest(spec);
+                resolvedBreakpoints.put(spec, createBreakpointRequest(spec));
             }
+            classPrepareRequests.remove(event.referenceType().name());
             vm.resume();
         }
     }

@@ -3,6 +3,8 @@ package uk.ac.imperial.doc.mfldb.bridge;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.Location;
 import com.sun.jdi.event.ClassPrepareEvent;
+import com.sun.jdi.request.BreakpointRequest;
+import com.sun.jdi.request.ClassPrepareRequest;
 import com.sun.jdi.request.EventRequest;
 import org.junit.Test;
 import uk.ac.imperial.doc.mfldb.bridge.mockvm.Event;
@@ -13,7 +15,7 @@ import java.util.function.Consumer;
 
 import static org.mockito.Mockito.verify;
 import static org.truth0.Truth.ASSERT;
-import static uk.ac.imperial.doc.mfldb.bridge.mockvm.MockVM.vmResumed;
+import static uk.ac.imperial.doc.mfldb.bridge.mockvm.Event.vmResumed;
 
 /**
  * Tests for the BreakpointManager class.
@@ -46,7 +48,7 @@ public class BreakpointManagerTest {
      * @param spec      The BreakpointSpec which was given to the BreakpointManager to cause this event.
      */
     private static Consumer<Event> createdBreakpointRequest(TestClass testClass, BreakpointSpec spec) {
-        return MockVM.createdBreakpointRequest(request -> {
+        return Event.createdBreakpointRequest(request -> {
             Location location = testClass.locationsOfLine(spec.lineNumber).get(0);
             ASSERT.that(request.location()).isEqualTo(location);
         });
@@ -58,11 +60,31 @@ public class BreakpointManagerTest {
      * @param className The name of the class this request should be deferring breakpoints for.
      */
     private static Consumer<Event> createdClassPrepareRequest(String className) {
-        return MockVM.createdClassPrepareRequest(request -> {
+        return Event.createdClassPrepareRequest(request -> {
             verify(request).addClassFilter(className);
             verify(request).addCountFilter(1);
             verify(request).setSuspendPolicy(EventRequest.SUSPEND_ALL);
             verify(request).enable();
+        });
+    }
+
+    /**
+     * Verifies that a ClassPrepareRequest was deleted correctly when a deferred breakpoint was removed.
+     *
+     * @param className The name of the class this request should be deferring breakpoints for.
+     */
+    private static Consumer<Event> deletedClassPrepareRequest(String className) {
+        return Event.deletedEventRequest(request -> {
+            ASSERT.withFailureMessage("Expected instance of ClassPrepareRequest").that(request instanceof ClassPrepareRequest).isTrue();
+            verify((ClassPrepareRequest) request).addClassFilter(className);
+        });
+    }
+
+    private static Consumer<Event> deletedBreakpointRequest(TestClass testClass, BreakpointSpec spec) {
+        return Event.deletedEventRequest(request -> {
+            ASSERT.withFailureMessage("Expected instance of BreakpointRequest").that(request instanceof BreakpointRequest).isTrue();
+            Location location = testClass.locationsOfLine(spec.lineNumber).get(0);
+            ASSERT.that(((BreakpointRequest) request).location()).isEqualTo(location);
         });
     }
 
@@ -249,6 +271,96 @@ public class BreakpointManagerTest {
                 createdBreakpointRequest(c, spec1),
                 createdBreakpointRequest(c, spec2),
                 vmResumed()
+        );
+    }
+
+    /**
+     * Tests that removing a breakpoint before it is resolved will cause the ClassPrepareRequest to be deleted too.
+     */
+    @Test
+    public void removeDeferredDeletesRequest() throws LineNotFoundException, AbsentInformationException {
+        // Given
+        TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
+        BreakpointSpec spec1 = new BreakpointSpec(c.name, 67);
+        BreakpointSpec spec2 = new BreakpointSpec(c.name, 67);
+
+        // When
+        manager.addBreakpoint(spec1);
+        manager.removeBreakpoint(spec2);
+        manager.resolveDeferred(c.makePrepared());
+
+        // Then
+        mockVM.verifyEventLog(
+                createdClassPrepareRequest(c.name),
+                deletedClassPrepareRequest(c.name)
+        );
+    }
+
+    /**
+     * Tests that removing one breakpoint before both are resolved will not prevent the second from being resolved.
+     */
+    @Test
+    public void removeOneDeferredStillResolvesSecond() throws LineNotFoundException, AbsentInformationException {
+        // Given
+        TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
+        BreakpointSpec spec1 = new BreakpointSpec(c.name, 67);
+        BreakpointSpec spec2 = new BreakpointSpec(c.name, 34);
+
+        // When
+        manager.addBreakpoint(spec1);
+        manager.addBreakpoint(spec2);
+        manager.removeBreakpoint(spec1);
+        manager.resolveDeferred(c.makePrepared());
+
+        // Then
+        mockVM.verifyEventLog(
+                createdClassPrepareRequest(c.name),
+                createdBreakpointRequest(c, spec2),
+                vmResumed()
+        );
+    }
+
+    /**
+     * Tests that removing a breakpoint after it is resolved will delete the breakpoint request.
+     */
+    @Test
+    public void removeAfterResolved() throws LineNotFoundException, AbsentInformationException {
+        // Given
+        TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
+        BreakpointSpec spec1 = new BreakpointSpec(c.name, 67);
+
+        // When
+        manager.addBreakpoint(spec1);
+        manager.resolveDeferred(c.makePrepared());
+        manager.removeBreakpoint(spec1);
+
+        // Then
+        mockVM.verifyEventLog(
+                createdClassPrepareRequest(c.name),
+                createdBreakpointRequest(c, spec1),
+                vmResumed(),
+                deletedBreakpointRequest(c, spec1)
+        );
+    }
+
+    /**
+     * Tests that removing a breakpoint inserted after a class is already loaded works as expected.
+     */
+    @Test
+    public void removeAfterInsertedWhenAlreadyResolved() throws LineNotFoundException, AbsentInformationException {
+        // Given
+        TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
+        BreakpointSpec spec1 = new BreakpointSpec(c.name, 67);
+
+        // When
+        manager.resolveDeferred(c.makePrepared());
+        manager.addBreakpoint(spec1);
+        manager.removeBreakpoint(spec1);
+
+        // Then
+        mockVM.verifyEventLog(
+                createdBreakpointRequest(c, spec1),
+                deletedBreakpointRequest(c, spec1)
         );
     }
 }
