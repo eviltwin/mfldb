@@ -1,5 +1,6 @@
 package uk.ac.imperial.doc.mfldb.ui;
 
+import com.sun.jdi.AbsentInformationException;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -8,8 +9,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.TreeItem;
 import javafx.scene.image.ImageView;
 import javafx.scene.web.WebView;
+import uk.ac.imperial.doc.mfldb.bridge.BreakpointSpec;
 import uk.ac.imperial.doc.mfldb.bridge.DebugSession;
 import uk.ac.imperial.doc.mfldb.bridge.DebugSessionException;
+import uk.ac.imperial.doc.mfldb.bridge.LineNotFoundException;
+import uk.ac.imperial.doc.mfldb.packagetree.BreakpointType;
 import uk.ac.imperial.doc.mfldb.packagetree.Class;
 import uk.ac.imperial.doc.mfldb.packagetree.Package;
 import uk.ac.imperial.doc.mfldb.packagetree.PackageTreeItem;
@@ -18,6 +22,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import static uk.ac.imperial.doc.mfldb.ui.Const.*;
 
@@ -39,6 +45,8 @@ public class MainWindowController {
     protected WebView codeArea;
 
     private CodeAreaController codeAreaController;
+    private Class selectedClass;
+    private final Set<BreakpointSpec> breakpoints = new LinkedHashSet<>();
     private DebugSession session;
     private Package rootPackage;
     private String cmd;
@@ -84,7 +92,7 @@ public class MainWindowController {
     @FXML
     protected void initialize() {
         try {
-            rootPackage = new Package(DEFAULT_PACKAGE_LABEL, Paths.get("."));
+            rootPackage = Package.buildPackageTree(DEFAULT_PACKAGE_LABEL, Paths.get("."));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -92,6 +100,7 @@ public class MainWindowController {
         packageTree.getSelectionModel().selectedItemProperty().addListener(this::packageTreeSelectionChanged);
         packageTree.setRoot(treeItemFactory(rootPackage));
         codeAreaController = new CodeAreaController(codeArea);
+        codeAreaController.setBreakpointToggleHandler(this::handleBreakpointToggle);
     }
 
     @FXML
@@ -105,8 +114,11 @@ public class MainWindowController {
         try {
             session = new DebugSession(cmd);
             session.stateProperty().addListener(debugSessionStateChanged);
+            for (BreakpointSpec spec : breakpoints) {
+                session.addBreakpoint(spec);
+            }
             session.resume();
-        } catch (DebugSessionException e) {
+        } catch (DebugSessionException | AbsentInformationException | LineNotFoundException e) {
             e.printStackTrace();
         }
     }
@@ -133,14 +145,43 @@ public class MainWindowController {
     private void packageTreeSelectionChanged(ObservableValue<? extends TreeItem<PackageTreeItem>> observable, TreeItem<PackageTreeItem> oldValue, TreeItem<PackageTreeItem> newValue) {
         PackageTreeItem item = newValue.getValue();
         if (item instanceof Class) {
-            Path javaFile = ((Class) item).getJavaFilePath();
+            Class classItem = (Class) item;
+            Path javaFile = classItem.getJavaFilePath();
             if (javaFile != null && Files.isReadable(javaFile)) {
                 try {
                     codeAreaController.replaceText(new String(Files.readAllBytes(javaFile)));
+                    selectedClass = classItem;
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
         }
+    }
+
+    private boolean handleBreakpointToggle(int lineNo) {
+        BreakpointType candidateType = selectedClass.getBreakpointTypeMap().get(Long.valueOf(lineNo));
+        if (candidateType != null) {
+            try {
+                BreakpointSpec spec = new BreakpointSpec(selectedClass.getQualifiedName(), lineNo);
+                if (!breakpoints.contains(spec)) {
+                    breakpoints.add(spec);
+                    if (session != null && !session.isTerminated()) {
+                        session.addBreakpoint(spec);
+                    }
+                    return true;
+                } else {
+                    breakpoints.remove(spec);
+                    if (session != null && !session.isTerminated()) {
+                        session.removeBreakpoint(spec);
+                    }
+                    return false;
+                }
+            } catch (LineNotFoundException e) {
+                e.printStackTrace();
+            } catch (AbsentInformationException e) {
+                e.printStackTrace();
+            }
+        }
+        return false;
     }
 }

@@ -138,6 +138,10 @@ public class DebugSession {
         return state.getReadOnlyProperty();
     }
 
+    public boolean isTerminated() {
+        return getState() == State.TERMINATED;
+    }
+
     /**
      * Return the launching connector's arguments.
      */

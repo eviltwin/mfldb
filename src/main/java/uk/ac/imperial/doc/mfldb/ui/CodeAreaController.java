@@ -3,6 +3,8 @@ package uk.ac.imperial.doc.mfldb.ui;
 import javafx.scene.web.WebView;
 import netscape.javascript.JSObject;
 
+import java.util.function.Function;
+
 import static uk.ac.imperial.doc.mfldb.ui.Const.CODEAREA_HTML;
 
 /**
@@ -12,6 +14,8 @@ public class CodeAreaController {
 
     private final WebView webView;
     private final Shim shim = new Shim();
+
+    private Function<Integer, Boolean> breakpointToggleHandler;
 
     public CodeAreaController(WebView webView) {
         this.webView = webView;
@@ -28,6 +32,10 @@ public class CodeAreaController {
         shim.replaceText(text);
     }
 
+    public void setBreakpointToggleHandler(Function<Integer, Boolean> handler) {
+        breakpointToggleHandler = handler;
+    }
+
     protected class Shim {
         private JSObject codemirror;
 
@@ -41,6 +49,11 @@ public class CodeAreaController {
 
         public void replaceText(String text) {
             codemirror.call("setValue", new Object[]{text});
+        }
+
+        public void toggleBreakpoint(int n) {
+            Boolean result = breakpointToggleHandler == null ? false : breakpointToggleHandler.apply(n);
+            codemirror.call("markBreakpoint", new Object[]{n, result});
         }
     }
 }
