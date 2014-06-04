@@ -24,14 +24,20 @@ import static uk.ac.imperial.doc.mfldb.packagetree.Const.*;
 public class Package implements PackageTreeItem {
 
     private final ReadOnlyStringWrapper name = new ReadOnlyStringWrapper(this, "name");
+    private final ReadOnlyStringWrapper qualifiedName = new ReadOnlyStringWrapper(this, "qualifiedName");
 
     private final ObservableList<PackageTreeItem> realChildren = FXCollections.observableArrayList();
     private final ReadOnlyListWrapper<PackageTreeItem> children = new ReadOnlyListWrapper<>(this, "children", FXCollections.unmodifiableObservableList(realChildren));
 
     private final Map<String, Class> classes = new HashMap<>();
 
-    public Package(String name, Path root) throws IOException {
+    public static Package buildPackageTree(String defaultPackageLabel, Path root) throws IOException {
+        return new Package(defaultPackageLabel, "", root);
+    }
+
+    protected Package(String name, String qualifiedName, Path root) throws IOException {
         this.name.set(name);
+        this.qualifiedName.set(name);
 
         DirectoryStream.Filter<Path> filter = p -> Files.isDirectory(p)
                 || p.toString().toLowerCase().endsWith(JAVA_FILE_EXTENSION)
@@ -39,7 +45,9 @@ public class Package implements PackageTreeItem {
         try (DirectoryStream<Path> dir = Files.newDirectoryStream(root, filter)) {
             for (Path path : dir) {
                 if (Files.isDirectory(path)) {
-                    realChildren.add(new Package(path));
+                    String childName = path.getName(path.getNameCount() - 1).toString();
+                    String childQualifiedName = getQualifiedName() + PACKAGE_SEPARATOR + childName;
+                    realChildren.add(new Package(childName, childQualifiedName, path));
                 } else {
                     updateOrCreateClassEntry(path);
                 }
@@ -52,16 +60,20 @@ public class Package implements PackageTreeItem {
         }
     }
 
-    public Package(Path root) throws IOException {
-        this(root.getName(root.getNameCount() - 1).toString(), root);
-    }
-
     public String getName() {
         return name.get();
     }
 
     public ReadOnlyStringProperty nameProperty() {
         return name.getReadOnlyProperty();
+    }
+
+    public String getQualifiedName() {
+        return qualifiedName.get();
+    }
+
+    public ReadOnlyStringProperty qualifiedNameProperty() {
+        return qualifiedName.getReadOnlyProperty();
     }
 
     @Override
@@ -80,13 +92,14 @@ public class Package implements PackageTreeItem {
 
     private void updateOrCreateClassEntry(Path path) {
         String filename = path.getName(path.getNameCount() - 1).toString();
-        String classname = filename.substring(0, filename.lastIndexOf('.'));
+        String className = filename.substring(0, filename.lastIndexOf('.'));
 
-        Class child = classes.get(classname);
+        Class child = classes.get(className);
         if (child == null) {
-            child = new Class(classname);
+            String qualifiedClassName = getQualifiedName() + PACKAGE_SEPARATOR + className;
+            child = new Class(className, qualifiedClassName);
             realChildren.add(child);
-            classes.put(classname, child);
+            classes.put(className, child);
         }
         if (filename.endsWith(JAVA_FILE_EXTENSION)) {
             child.setJavaFilePath(path);

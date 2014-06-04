@@ -1,22 +1,38 @@
 package uk.ac.imperial.doc.mfldb.packagetree;
 
-import javafx.beans.property.*;
+import com.sun.source.util.JavacTask;
+import com.sun.source.util.Trees;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
+import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.ToolProvider;
+import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Map;
 
 /**
-* Created by graham on 11/05/14.
-*/
+ * Created by graham on 11/05/14.
+ */
 public class Class implements PackageTreeItem {
 
     private final ReadOnlyStringWrapper name = new ReadOnlyStringWrapper(this, "name");
+    private final ReadOnlyStringWrapper qualifiedName = new ReadOnlyStringWrapper(this, "qualifiedName");
     private final ObjectProperty<Path> classFilePath = new SimpleObjectProperty<>(this, "classFilePath");
     private final ObjectProperty<Path> javaFilePath = new SimpleObjectProperty<>(this, "javaFilePath");
 
-    public Class(String name) {
+    private Map<Long, BreakpointType> breakpointTypeMap = null;
+
+    protected Class(String name, String qualifiedName) {
         this.name.set(name);
+        this.qualifiedName.set(qualifiedName);
     }
 
     public String getName() {
@@ -25,6 +41,14 @@ public class Class implements PackageTreeItem {
 
     public ReadOnlyStringProperty nameProperty() {
         return name.getReadOnlyProperty();
+    }
+
+    public String getQualifiedName() {
+        return qualifiedName.get();
+    }
+
+    public ReadOnlyStringProperty qualifiedNameProperty() {
+        return qualifiedName.getReadOnlyProperty();
     }
 
     public Path getClassFilePath() {
@@ -45,10 +69,19 @@ public class Class implements PackageTreeItem {
 
     public void setJavaFilePath(Path javaFilePath) {
         this.javaFilePath.set(javaFilePath);
+        breakpointTypeMap = null;
     }
 
     public ObjectProperty<Path> javaFilePathProperty() {
         return javaFilePath;
+    }
+
+    public Map<Long, BreakpointType> getBreakpointTypeMap() {
+        if (breakpointTypeMap == null && getJavaFilePath() != null) {
+            buildBreakpointMap();
+        }
+        // GIVE ME NULL-COALESCE OR GIVE ME DEATH!
+        return breakpointTypeMap == null ? Collections.emptyMap() : breakpointTypeMap;
     }
 
     @Override
@@ -59,5 +92,22 @@ public class Class implements PackageTreeItem {
     @Override
     public String toString() {
         return getName();
+    }
+
+    private void buildBreakpointMap() {
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
+
+        Iterable<? extends JavaFileObject> compilationUnits = fileManager.getJavaFileObjects(getJavaFilePath().toFile());
+        JavacTask task = (JavacTask) compiler.getTask(null, fileManager, null, null, null, compilationUnits);
+
+        Trees trees = Trees.instance(task);
+        BreakpointCandidateScanner scanner = new BreakpointCandidateScanner();
+
+        try {
+            breakpointTypeMap = scanner.scan(task.parse(), trees.getSourcePositions());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
