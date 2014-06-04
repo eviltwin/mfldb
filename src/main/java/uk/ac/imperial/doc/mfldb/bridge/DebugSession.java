@@ -96,7 +96,7 @@ public class DebugSession {
         });
     }
 
-    public void addBreakPoint(BreakpointSpec spec) throws LineNotFoundException, AbsentInformationException {
+    public void addBreakpoint(BreakpointSpec spec) throws LineNotFoundException, AbsentInformationException {
         breakpointManager.addBreakpoint(spec);
     }
 
