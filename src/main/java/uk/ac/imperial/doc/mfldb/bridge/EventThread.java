@@ -1,10 +1,8 @@
 package uk.ac.imperial.doc.mfldb.bridge;
 
-import com.sun.jdi.*;
-import com.sun.jdi.request.*;
+import com.sun.jdi.VMDisconnectedException;
+import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.*;
-
-import java.util.*;
 
 /**
  * Classifies incoming JDI Events and dispatches them to {@link java.util.EventListener}s
@@ -12,7 +10,7 @@ import java.util.*;
 public class EventThread extends Thread {
 
     private final VirtualMachine vm;
-    private final List<JDIEventListener> eventListeners = new ArrayList<>();
+    private Callbacks callbacks = null;
 
     private boolean connected = true;
     private boolean vmDied = true;
@@ -49,23 +47,22 @@ public class EventThread extends Thread {
      * Dispatch incoming events
      */
     private void handleEvent(Event event) {
-        synchronized (eventListeners) {
-            for (JDIEventListener listener : eventListeners) {
-                if (event instanceof ClassPrepareEvent) {
-                    listener.classPrepareEvent((ClassPrepareEvent) event);
-                } else if (event instanceof BreakpointEvent) {
-                    listener.breakpointEvent((BreakpointEvent) event);
-                } else if (event instanceof VMStartEvent) {
-                    listener.vmStartEvent((VMStartEvent) event);
-                } else if (event instanceof VMDeathEvent) {
-                    vmDied = true;
-                    listener.vmDeathEvent((VMDeathEvent) event);
-                } else if (event instanceof VMDisconnectEvent) {
-                    connected = false;
-                    listener.vmDisconnectEvent((VMDisconnectEvent) event);
-                } else {
-                    throw new Error("Unexpected event type");
-                }
+        Callbacks callbacks = this.callbacks;
+        if (callbacks != null) {
+            if (event instanceof ClassPrepareEvent) {
+                callbacks.classPrepareEvent((ClassPrepareEvent) event);
+            } else if (event instanceof BreakpointEvent) {
+                callbacks.breakpointEvent((BreakpointEvent) event);
+            } else if (event instanceof VMStartEvent) {
+                callbacks.vmStartEvent((VMStartEvent) event);
+            } else if (event instanceof VMDeathEvent) {
+                vmDied = true;
+                callbacks.vmDeathEvent((VMDeathEvent) event);
+            } else if (event instanceof VMDisconnectEvent) {
+                connected = false;
+                callbacks.vmDisconnectEvent((VMDisconnectEvent) event);
+            } else {
+                throw new Error("Unexpected event type");
             }
         }
     }
@@ -92,9 +89,18 @@ public class EventThread extends Thread {
         }
     }
 
-    public void addEventListener(JDIEventListener jdiEventListener) {
-        synchronized (eventListeners) {
-            eventListeners.add(jdiEventListener);
-        }
+    public void setCallbacks(Callbacks callbacks) {
+        this.callbacks = callbacks;
+    }
+
+    /**
+     * Callbacks for the EventThread to its owner.
+     */
+    public static interface Callbacks {
+        void vmStartEvent(VMStartEvent event);
+        void classPrepareEvent(ClassPrepareEvent event);
+        void breakpointEvent(BreakpointEvent event);
+        void vmDeathEvent(VMDeathEvent event);
+        void vmDisconnectEvent(VMDisconnectEvent event);
     }
 }
