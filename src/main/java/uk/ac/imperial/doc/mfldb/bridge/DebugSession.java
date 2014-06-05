@@ -2,7 +2,6 @@ package uk.ac.imperial.doc.mfldb.bridge;
 
 import com.hypirion.io.Pipe;
 import com.hypirion.io.RevivableInputStream;
-import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.Bootstrap;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.connect.Connector;
@@ -17,6 +16,8 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Created by graham on 08/05/14.
@@ -68,13 +69,7 @@ public class DebugSession {
 
             @Override
             public void classPrepareEvent(ClassPrepareEvent event) {
-                try {
-                    breakpointManager.resolveDeferred(event);
-                } catch (LineNotFoundException e) {
-                    e.printStackTrace();
-                } catch (AbsentInformationException e) {
-                    e.printStackTrace();
-                }
+                breakpointManager.resolveDeferred(event);
             }
 
             @Override
@@ -96,12 +91,22 @@ public class DebugSession {
         });
     }
 
-    public void addBreakpoint(BreakpointSpec spec) throws LineNotFoundException, AbsentInformationException {
+    public void addBreakpoint(BreakpointSpec spec) {
         breakpointManager.addBreakpoint(spec);
     }
 
     public void removeBreakpoint(BreakpointSpec spec) {
         breakpointManager.removeBreakpoint(spec);
+    }
+
+    public void setBreakpointResolutionSuccessCallback(Consumer<BreakpointSpec> breakpointResolutionSuccessCallback) {
+        breakpointManager.setResolutionSuccessCallback(breakpointResolutionSuccessCallback == null ? null :
+                spec -> Platform.runLater(() -> breakpointResolutionSuccessCallback.accept(spec)));
+    }
+
+    public void setBreakpointResolutionFailureCallback(BiConsumer<BreakpointSpec, Exception> breakpointResolutionFailureCallback) {
+        breakpointManager.setResolutionFailureCallback(breakpointResolutionFailureCallback == null ? null :
+                (spec, e) -> Platform.runLater(() -> breakpointResolutionFailureCallback.accept(spec, e)));
     }
 
     public void ensureEnded() {

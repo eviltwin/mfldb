@@ -18,8 +18,12 @@
             shim.toggleBreakpoint(n + 1);
         });
 
-        codemirror.markBreakpoint = function(n, marked) {
-            codemirror.setGutterMarker(n - 1, "breakpoints", marked ? makeMarker() : null);
+        codemirror.markBreakpoint = function(n, src) {
+            codemirror.setGutterMarker(n - 1, "breakpoints", makeMarker(src));
+        }
+
+        codemirror.clearBreakpoint = function(n) {
+            codemirror.setGutterMarker(n - 1, "breakpoints", null);
         }
 
         shim.setCodeMirrorObject(codemirror);
@@ -29,9 +33,9 @@
         shim.logError("RequireJS encountered an error!");
     }
 
-    function makeMarker() {
+    function makeMarker(src) {
       var marker = document.createElement("img");
-      marker.src = "db_set_breakpoint.png"
+      marker.src = src;
       return marker;
     }
 })();

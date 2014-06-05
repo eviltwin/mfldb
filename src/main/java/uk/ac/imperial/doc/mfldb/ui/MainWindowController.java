@@ -1,6 +1,5 @@
 package uk.ac.imperial.doc.mfldb.ui;
 
-import com.sun.jdi.AbsentInformationException;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -12,7 +11,6 @@ import javafx.scene.web.WebView;
 import uk.ac.imperial.doc.mfldb.bridge.BreakpointSpec;
 import uk.ac.imperial.doc.mfldb.bridge.DebugSession;
 import uk.ac.imperial.doc.mfldb.bridge.DebugSessionException;
-import uk.ac.imperial.doc.mfldb.bridge.LineNotFoundException;
 import uk.ac.imperial.doc.mfldb.packagetree.BreakpointType;
 import uk.ac.imperial.doc.mfldb.packagetree.Class;
 import uk.ac.imperial.doc.mfldb.packagetree.Package;
@@ -22,12 +20,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static uk.ac.imperial.doc.mfldb.ui.Const.*;
 
 public class MainWindowController {
+
+    private final Map<BreakpointSpec, BreakpointStatus> breakpoints = new LinkedHashMap<>();
 
     @FXML
     protected Button runButton;
@@ -46,7 +46,6 @@ public class MainWindowController {
 
     private CodeAreaController codeAreaController;
     private Class selectedClass;
-    private final Set<BreakpointSpec> breakpoints = new LinkedHashSet<>();
     private DebugSession session;
     private Package rootPackage;
     private String cmd;
@@ -73,6 +72,7 @@ public class MainWindowController {
             suspendButton.setGraphic(new ImageView(SUSPEND_IMAGE));
             suspendButton.setDisable(true);
             stopButton.setDisable(true);
+            ensureEnded();
         }
     };
 
@@ -80,8 +80,16 @@ public class MainWindowController {
         if (session != null) {
             // Remove the session state changed event handler to avoid handling stale queued events
             session.stateProperty().removeListener(debugSessionStateChanged);
+            session.setBreakpointResolutionSuccessCallback(null);
+            session.setBreakpointResolutionFailureCallback(null);
             session.ensureEnded();
             session = null;
+
+            // Change all breakpoints to be back to the "ADDED" state.
+            breakpoints.replaceAll((spec, status) -> BreakpointStatus.ADDED);
+            if (selectedClass != null) {
+                refreshBreakpointMarkers();
+            }
         }
     }
 
@@ -114,11 +122,11 @@ public class MainWindowController {
         try {
             session = new DebugSession(cmd);
             session.stateProperty().addListener(debugSessionStateChanged);
-            for (BreakpointSpec spec : breakpoints) {
-                session.addBreakpoint(spec);
-            }
+            session.setBreakpointResolutionSuccessCallback(this::handleBreakpointResolutionSuccess);
+            session.setBreakpointResolutionFailureCallback(this::handleBreakpointResolutionFailure);
+            breakpoints.keySet().forEach(spec -> session.addBreakpoint(spec));
             session.resume();
-        } catch (DebugSessionException | AbsentInformationException | LineNotFoundException e) {
+        } catch (DebugSessionException e) {
             e.printStackTrace();
         }
     }
@@ -151,6 +159,7 @@ public class MainWindowController {
                 try {
                     codeAreaController.replaceText(new String(Files.readAllBytes(javaFile)));
                     selectedClass = classItem;
+                    refreshBreakpointMarkers();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -158,30 +167,57 @@ public class MainWindowController {
         }
     }
 
-    private boolean handleBreakpointToggle(int lineNo) {
+    private void handleBreakpointToggle(int lineNo) {
         BreakpointType candidateType = selectedClass.getBreakpointTypeMap().get(Long.valueOf(lineNo));
         if (candidateType != null) {
-            try {
-                BreakpointSpec spec = new BreakpointSpec(selectedClass.getQualifiedName(), lineNo);
-                if (!breakpoints.contains(spec)) {
-                    breakpoints.add(spec);
-                    if (session != null && !session.isTerminated()) {
-                        session.addBreakpoint(spec);
-                    }
-                    return true;
-                } else {
-                    breakpoints.remove(spec);
-                    if (session != null && !session.isTerminated()) {
-                        session.removeBreakpoint(spec);
-                    }
-                    return false;
+            BreakpointSpec spec = new BreakpointSpec(selectedClass.getQualifiedName(), lineNo);
+            if (!breakpoints.containsKey(spec)) {
+                breakpoints.put(spec, BreakpointStatus.ADDED);
+                codeAreaController.markBreakpoint(lineNo, BreakpointType.LINE);
+                if (session != null && !session.isTerminated()) {
+                    session.addBreakpoint(spec);
                 }
-            } catch (LineNotFoundException e) {
-                e.printStackTrace();
-            } catch (AbsentInformationException e) {
-                e.printStackTrace();
+            } else {
+                breakpoints.remove(spec);
+                codeAreaController.clearBreakpoint(lineNo);
+                if (session != null && !session.isTerminated()) {
+                    session.removeBreakpoint(spec);
+                }
             }
         }
-        return false;
     }
+
+    private void handleBreakpointResolutionSuccess(BreakpointSpec spec) {
+        breakpoints.put(spec, BreakpointStatus.RESOLVED);
+        if (spec.className.equals(selectedClass.getQualifiedName())) {
+            codeAreaController.markBreakpointResolved(spec.lineNumber, BreakpointType.LINE);
+        }
+    }
+
+    private void handleBreakpointResolutionFailure(BreakpointSpec spec, Exception e) {
+        breakpoints.put(spec, BreakpointStatus.FAILED);
+        if (spec.className.equals(selectedClass.getQualifiedName())) {
+            codeAreaController.markBreakpointResolutionFailed(spec.lineNumber, BreakpointType.LINE);
+        }
+    }
+
+    private void refreshBreakpointMarkers() {
+        breakpoints.forEach((spec, status) -> {
+            if (spec.className.equals(selectedClass.getQualifiedName())) {
+                switch (status) {
+                    case ADDED:
+                        codeAreaController.markBreakpoint(spec.lineNumber, BreakpointType.LINE);
+                        break;
+                    case RESOLVED:
+                        codeAreaController.markBreakpointResolved(spec.lineNumber, BreakpointType.LINE);
+                        break;
+                    case FAILED:
+                        codeAreaController.markBreakpointResolutionFailed(spec.lineNumber, BreakpointType.LINE);
+                        break;
+                }
+            }
+        });
+    }
+
+    private enum BreakpointStatus {ADDED, RESOLVED, FAILED}
 }

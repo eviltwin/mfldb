@@ -2,8 +2,9 @@ package uk.ac.imperial.doc.mfldb.ui;
 
 import javafx.scene.web.WebView;
 import netscape.javascript.JSObject;
+import uk.ac.imperial.doc.mfldb.packagetree.BreakpointType;
 
-import java.util.function.Function;
+import java.util.function.Consumer;
 
 import static uk.ac.imperial.doc.mfldb.ui.Const.CODEAREA_HTML;
 
@@ -13,9 +14,12 @@ import static uk.ac.imperial.doc.mfldb.ui.Const.CODEAREA_HTML;
 public class CodeAreaController {
 
     private final WebView webView;
+
     private final Shim shim = new Shim();
 
-    private Function<Integer, Boolean> breakpointToggleHandler;
+    private JSObject codemirror;
+
+    private Consumer<Integer> breakpointToggleHandler;
 
     public CodeAreaController(WebView webView) {
         this.webView = webView;
@@ -29,31 +33,43 @@ public class CodeAreaController {
     }
 
     public void replaceText(String text) {
-        shim.replaceText(text);
+        codemirror.call("setValue", new Object[]{text});
     }
 
-    public void setBreakpointToggleHandler(Function<Integer, Boolean> handler) {
+    public void setBreakpointToggleHandler(Consumer<Integer> handler) {
         breakpointToggleHandler = handler;
     }
 
+    public void markBreakpoint(int lineNo, BreakpointType type) {
+        codemirror.call("markBreakpoint", new Object[]{lineNo, "db_set_breakpoint.png"});
+    }
+
+    public void markBreakpointResolved(int lineNo, BreakpointType type) {
+        codemirror.call("markBreakpoint", new Object[]{lineNo, "db_verified_breakpoint.png"});
+    }
+
+    public void markBreakpointResolutionFailed(int lineNo, BreakpointType type) {
+        codemirror.call("markBreakpoint", new Object[]{lineNo, "db_invalid_breakpoint.png"});
+    }
+
+    public void clearBreakpoint(int lineNo) {
+        codemirror.call("clearBreakpoint", new Object[]{lineNo});
+    }
+
     protected class Shim {
-        private JSObject codemirror;
 
         public void logError(String message) {
             System.err.println(message);
         }
 
         public void setCodeMirrorObject(JSObject codemirror) {
-            this.codemirror = codemirror;
-        }
-
-        public void replaceText(String text) {
-            codemirror.call("setValue", new Object[]{text});
+            CodeAreaController.this.codemirror = codemirror;
         }
 
         public void toggleBreakpoint(int n) {
-            Boolean result = breakpointToggleHandler == null ? false : breakpointToggleHandler.apply(n);
-            codemirror.call("markBreakpoint", new Object[]{n, result});
+            if (breakpointToggleHandler != null) {
+                breakpointToggleHandler.accept(n);
+            }
         }
     }
 }

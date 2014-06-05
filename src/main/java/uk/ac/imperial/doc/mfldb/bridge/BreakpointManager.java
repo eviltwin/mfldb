@@ -15,6 +15,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Manages deferral and resolution of pending breakpoints.
@@ -42,6 +44,16 @@ class BreakpointManager {
     private final VirtualMachine vm;
 
     /**
+     * The callback to be invoked if resolution of a breakpoint succeeds.
+     */
+    private Consumer<BreakpointSpec> resolutionSuccessCallback;
+
+    /**
+     * The callback to be invoked if resolution of a breakpoint fails.
+     */
+    private BiConsumer<BreakpointSpec, Exception> resolutionFailureCallback;
+
+    /**
      * Constructs a new BreakpointManager wrapping a given VirtualMachine.
      *
      * @param vm The VirtualMachine to be managed.
@@ -60,16 +72,25 @@ class BreakpointManager {
      * @throws LineNotFoundException
      * @throws AbsentInformationException
      */
-    void addBreakpoint(BreakpointSpec spec) throws LineNotFoundException, AbsentInformationException {
-        BreakpointRequest breakpointRequest = createBreakpointRequest(spec);
-        if (breakpointRequest == null) {
-            // Could not create the request, defer
-            if (!deferredBreakpoints.containsKey(spec.className)) {
-                classPrepareRequests.put(spec.className, createClassPrepareRequest(spec));
+    void addBreakpoint(BreakpointSpec spec) {
+        try {
+            BreakpointRequest breakpointRequest = createBreakpointRequest(spec);
+            if (breakpointRequest == null) {
+                // Could not create the request, defer
+                if (!deferredBreakpoints.containsKey(spec.className)) {
+                    classPrepareRequests.put(spec.className, createClassPrepareRequest(spec));
+                }
+                deferredBreakpoints.put(spec.className, spec);
+            } else {
+                resolvedBreakpoints.put(spec, breakpointRequest);
+                if (resolutionSuccessCallback != null) {
+                    resolutionSuccessCallback.accept(spec);
+                }
             }
-            deferredBreakpoints.put(spec.className, spec);
-        } else {
-            resolvedBreakpoints.put(spec, breakpointRequest);
+        } catch (LineNotFoundException | AbsentInformationException e) {
+            if (resolutionFailureCallback != null) {
+                resolutionFailureCallback.accept(spec, e);
+            }
         }
     }
 
@@ -102,15 +123,40 @@ class BreakpointManager {
      * @throws LineNotFoundException      If the line specified in the breakpoint couldn't be found.
      * @throws AbsentInformationException If the VirtualMachine didn't have the required information.
      */
-    public void resolveDeferred(ClassPrepareEvent event) throws LineNotFoundException, AbsentInformationException {
+    public void resolveDeferred(ClassPrepareEvent event) {
         Collection<BreakpointSpec> specs = deferredBreakpoints.removeAll(event.referenceType().name());
         if (specs != null && !specs.isEmpty()) {
             for (BreakpointSpec spec : specs) {
-                resolvedBreakpoints.put(spec, createBreakpointRequest(spec));
+                try {
+                    resolvedBreakpoints.put(spec, createBreakpointRequest(spec));
+                    if (resolutionSuccessCallback != null) {
+                        resolutionSuccessCallback.accept(spec);
+                    }
+                } catch (LineNotFoundException | AbsentInformationException e) {
+                    if (resolutionFailureCallback != null) {
+                        resolutionFailureCallback.accept(spec, e);
+                    }
+                }
             }
             classPrepareRequests.remove(event.referenceType().name());
             vm.resume();
         }
+    }
+
+    /**
+     * Sets the callback to be invoked if resolution of a breakpoint succeeds.
+     * @param resolutionSuccessCallback
+     */
+    public void setResolutionSuccessCallback(Consumer<BreakpointSpec> resolutionSuccessCallback) {
+        this.resolutionSuccessCallback = resolutionSuccessCallback;
+    }
+
+    /**
+     * Sets the callback to be invoked if resolution of a breakpoint fails.
+     * @param resolutionFailureCallback
+     */
+    public void setResolutionFailureCallback(BiConsumer<BreakpointSpec, Exception> resolutionFailureCallback) {
+        this.resolutionFailureCallback = resolutionFailureCallback;
     }
 
     /**
