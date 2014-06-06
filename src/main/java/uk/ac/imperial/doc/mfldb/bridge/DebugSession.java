@@ -3,6 +3,7 @@ package uk.ac.imperial.doc.mfldb.bridge;
 import com.hypirion.io.Pipe;
 import com.hypirion.io.RevivableInputStream;
 import com.sun.jdi.Bootstrap;
+import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
@@ -37,6 +38,8 @@ public class DebugSession {
      */
     private final VirtualMachine vm;
 
+    private final ThreadManager threadManager;
+
     private final BreakpointManager breakpointManager;
 
     private Pipe inPipe;
@@ -57,11 +60,17 @@ public class DebugSession {
             throw new DebugSessionException(e);
         }
         vm.setDebugTraceMode(VirtualMachine.TRACE_NONE);
+        threadManager = new ThreadManager(vm);
         breakpointManager = new BreakpointManager(vm);
         redirectOutput();
         startEventThread();
 
-        eventThread.addEventListener(new JDIEventListener() {
+        eventThread.setCallbacks(new EventThread.Callbacks() {
+            @Override
+            public void eventSet(EventSet events) {
+                threadManager.updateCurrentThread(events);
+            }
+
             @Override
             public void vmStartEvent(VMStartEvent event) {
                 Platform.runLater(() -> state.set(State.RUNNING));
@@ -141,6 +150,10 @@ public class DebugSession {
 
     public ReadOnlyObjectProperty<State> stateProperty() {
         return state.getReadOnlyProperty();
+    }
+
+    public ThreadReference getCurrentThread() {
+        return threadManager.getCurrentThread();
     }
 
     public boolean isTerminated() {

@@ -31,6 +31,10 @@ public class EventThread extends Thread {
         while (connected) {
             try {
                 EventSet eventSet = queue.remove();
+                Callbacks callbacks = this.callbacks;
+                if (callbacks != null) {
+                    callbacks.eventSet(eventSet);
+                }
                 for (Event event : eventSet) {
                     handleEvent(event);
                 }
@@ -97,6 +101,7 @@ public class EventThread extends Thread {
      * Callbacks for the EventThread to its owner.
      */
     public static interface Callbacks {
+        void eventSet(EventSet events);
         void vmStartEvent(VMStartEvent event);
         void classPrepareEvent(ClassPrepareEvent event);
         void breakpointEvent(BreakpointEvent event);
