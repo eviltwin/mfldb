@@ -60,6 +60,15 @@ public class Package implements PackageTreeItem {
         }
     }
 
+    @Override
+    public PackageTreeItem lookupChild(String name) {
+        return getQualifiedName().equals(name) ? this : children.get().stream()
+                .filter(c -> name.startsWith(c.getQualifiedName()))
+                .findFirst()
+                .map(c -> c.lookupChild(name))
+                .orElse(null);
+    }
+
     public String getName() {
         return name.get();
     }
@@ -68,6 +77,7 @@ public class Package implements PackageTreeItem {
         return name.getReadOnlyProperty();
     }
 
+    @Override
     public String getQualifiedName() {
         return qualifiedName.get();
     }

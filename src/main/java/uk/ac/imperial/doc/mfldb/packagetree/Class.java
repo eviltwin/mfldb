@@ -35,6 +35,11 @@ public class Class implements PackageTreeItem {
         this.qualifiedName.set(qualifiedName);
     }
 
+    @Override
+    public PackageTreeItem lookupChild(String name) {
+        return getQualifiedName().equals(name) ? this : null;
+    }
+
     public String getName() {
         return name.get();
     }
