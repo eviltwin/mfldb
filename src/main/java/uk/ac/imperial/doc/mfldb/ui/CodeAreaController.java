@@ -56,6 +56,14 @@ public class CodeAreaController {
         codemirror.call("clearBreakpoint", new Object[]{lineNo});
     }
 
+    public void jumpToLine(int lineNo) {
+        codemirror.call("jumpToLine", new Object[]{lineNo});
+    }
+
+    public void markCurrentLine(int lineNo) {
+        codemirror.call("markCurrentLine", new Object[]{lineNo});
+    }
+
     protected class Shim {
 
         public void logError(String message) {

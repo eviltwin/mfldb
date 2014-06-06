@@ -26,6 +26,16 @@
             codemirror.setGutterMarker(n - 1, "breakpoints", null);
         }
 
+        codemirror.jumpToLine = function(n) {
+            var t = codemirror.charCoords({line: n - 1, ch: 0}, "local").top;
+            var middleHeight = codemirror.getScrollerElement().offsetHeight / 2;
+            codemirror.scrollTo(null, t - middleHeight - 5);
+        }
+
+        codemirror.markCurrentLine = function (n) {
+            codemirror.addLineClass(n - 1, "background", "current-line");
+        }
+
         shim.setCodeMirrorObject(codemirror);
     }
 

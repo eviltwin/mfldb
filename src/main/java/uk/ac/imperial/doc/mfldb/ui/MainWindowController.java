@@ -1,5 +1,6 @@
 package uk.ac.imperial.doc.mfldb.ui;
 
+import com.sun.jdi.*;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -62,6 +63,7 @@ public class MainWindowController {
         } else if (newValue == DebugSession.State.SUSPENDED) {
             suspendButton.setText(RESUME_BUTTON_LABEL);
             suspendButton.setGraphic(new ImageView(RESUME_IMAGE));
+            moveCarretToCurrentPosition();
         } else if (newValue == DebugSession.State.RUNNING && oldValue == DebugSession.State.SUSPENDED) {
             suspendButton.setText(SUSPEND_BUTTON_LABEL);
             suspendButton.setGraphic(new ImageView(SUSPEND_IMAGE));
@@ -153,16 +155,20 @@ public class MainWindowController {
     private void packageTreeSelectionChanged(ObservableValue<? extends TreeItem<PackageTreeItem>> observable, TreeItem<PackageTreeItem> oldValue, TreeItem<PackageTreeItem> newValue) {
         PackageTreeItem item = newValue.getValue();
         if (item instanceof Class) {
-            Class classItem = (Class) item;
-            Path javaFile = classItem.getJavaFilePath();
-            if (javaFile != null && Files.isReadable(javaFile)) {
-                try {
-                    codeAreaController.replaceText(new String(Files.readAllBytes(javaFile)));
-                    selectedClass = classItem;
-                    refreshBreakpointMarkers();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            openFile((Class) item);
+        }
+    }
+
+    private void openFile(Class item) {
+        Class classItem = (Class) item;
+        Path javaFile = classItem.getJavaFilePath();
+        if (javaFile != null && Files.isReadable(javaFile)) {
+            try {
+                codeAreaController.replaceText(new String(Files.readAllBytes(javaFile)));
+                selectedClass = classItem;
+                refreshBreakpointMarkers();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -203,7 +209,7 @@ public class MainWindowController {
 
     private void refreshBreakpointMarkers() {
         breakpoints.forEach((spec, status) -> {
-            if (spec.className.equals(selectedClass.getQualifiedName())) {
+            if (selectedClass != null && spec.className.equals(selectedClass.getQualifiedName())) {
                 switch (status) {
                     case ADDED:
                         codeAreaController.markBreakpoint(spec.lineNumber, BreakpointType.LINE);
@@ -217,6 +223,20 @@ public class MainWindowController {
                 }
             }
         });
+    }
+
+    private void moveCarretToCurrentPosition() {
+        ThreadReference currentThread = session.getCurrentThread();
+        try {
+            StackFrame frame = currentThread.frame(0);
+            Location location = frame.location();
+            Class target = (Class) rootPackage.lookupChild(location.declaringType().name());
+            openFile(target);
+            codeAreaController.jumpToLine(location.lineNumber());
+            codeAreaController.markCurrentLine(location.lineNumber());
+        } catch (IncompatibleThreadStateException e) {
+            //e.printStackTrace();
+        }
     }
 
     private enum BreakpointStatus {ADDED, RESOLVED, FAILED}
