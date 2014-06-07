@@ -196,12 +196,11 @@ public class MainWindowController {
     }
 
     private void openFile(Class item) {
-        Class classItem = (Class) item;
-        Path javaFile = classItem.getJavaFilePath();
+        Path javaFile = item.getJavaFilePath();
         if (javaFile != null && Files.isReadable(javaFile)) {
             try {
                 codeAreaController.replaceText(new String(Files.readAllBytes(javaFile)));
-                selectedClass = classItem;
+                selectedClass = item;
                 refreshBreakpointMarkers();
             } catch (IOException e) {
                 e.printStackTrace();
