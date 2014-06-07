@@ -11,6 +11,8 @@ import com.sun.jdi.connect.LaunchingConnector;
 import com.sun.jdi.connect.VMStartException;
 import com.sun.jdi.event.*;
 import com.sun.jdi.request.EventRequest;
+import com.sun.jdi.request.EventRequestManager;
+import com.sun.jdi.request.StepRequest;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -19,6 +21,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * Created by graham on 08/05/14.
@@ -89,6 +92,11 @@ public class DebugSession {
             }
 
             @Override
+            public void stepEvent(StepEvent event) {
+                Platform.runLater(() -> state.set(State.SUSPENDED));
+            }
+
+            @Override
             public void vmDeathEvent(VMDeathEvent event) {
                 Platform.runLater(() -> state.set(State.TERMINATED));
             }
@@ -144,6 +152,30 @@ public class DebugSession {
         state.set(State.RUNNING);
     }
 
+    public void stepOver(ThreadReference thread) {
+        clearPreviousStepRequest(thread);
+        StepRequest request = vm.eventRequestManager().createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OVER);
+        request.addCountFilter(1);
+        request.enable();
+        resume();
+    }
+
+    public void stepInto(ThreadReference thread) {
+        clearPreviousStepRequest(thread);
+        StepRequest request = vm.eventRequestManager().createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_INTO);
+        request.addCountFilter(1);
+        request.enable();
+        resume();
+    }
+
+    public void stepOut(ThreadReference thread) {
+        clearPreviousStepRequest(thread);
+        StepRequest request = vm.eventRequestManager().createStepRequest(thread, StepRequest.STEP_LINE, StepRequest.STEP_OUT);
+        request.addCountFilter(1);
+        request.enable();
+        resume();
+    }
+
     public State getState() {
         return state.get();
     }
@@ -195,5 +227,13 @@ public class DebugSession {
     private void startEventThread() {
         eventThread = new EventThread(vm);
         eventThread.start();
+    }
+
+    private void clearPreviousStepRequest(ThreadReference thread) {
+        EventRequestManager manager = vm.eventRequestManager();
+        manager.stepRequests().stream()
+                .filter(r -> r.thread().equals(thread))
+                .collect(Collectors.toList()) // avoid ConcurrentModificationException by storing in a list...
+                .forEach(manager::deleteEventRequest);
     }
 }

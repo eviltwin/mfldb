@@ -1,6 +1,9 @@
 package uk.ac.imperial.doc.mfldb.ui;
 
-import com.sun.jdi.*;
+import com.sun.jdi.IncompatibleThreadStateException;
+import com.sun.jdi.Location;
+import com.sun.jdi.StackFrame;
+import com.sun.jdi.ThreadReference;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -40,6 +43,15 @@ public class MainWindowController {
     protected Button stopButton;
 
     @FXML
+    protected Button stepOverButton;
+
+    @FXML
+    protected Button stepIntoButton;
+
+    @FXML
+    protected Button stepOutButton;
+
+    @FXML
     protected TreeViewWithItems<PackageTreeItem> packageTree;
 
     @FXML
@@ -63,10 +75,16 @@ public class MainWindowController {
         } else if (newValue == DebugSession.State.SUSPENDED) {
             suspendButton.setText(RESUME_BUTTON_LABEL);
             suspendButton.setGraphic(new ImageView(RESUME_IMAGE));
+            stepOverButton.setDisable(false);
+            stepIntoButton.setDisable(false);
+            stepOutButton.setDisable(false);
             moveCarretToCurrentPosition();
         } else if (newValue == DebugSession.State.RUNNING && oldValue == DebugSession.State.SUSPENDED) {
             suspendButton.setText(SUSPEND_BUTTON_LABEL);
             suspendButton.setGraphic(new ImageView(SUSPEND_IMAGE));
+            stepOverButton.setDisable(true);
+            stepIntoButton.setDisable(true);
+            stepOutButton.setDisable(true);
         } else if (newValue == DebugSession.State.TERMINATED) {
             runButton.setText(RUN_BUTTON_LABEL);
             runButton.setGraphic(new ImageView(RUN_IMAGE));
@@ -74,6 +92,9 @@ public class MainWindowController {
             suspendButton.setGraphic(new ImageView(SUSPEND_IMAGE));
             suspendButton.setDisable(true);
             stopButton.setDisable(true);
+            stepOverButton.setDisable(true);
+            stepIntoButton.setDisable(true);
+            stepOutButton.setDisable(true);
             ensureEnded();
         }
     };
@@ -140,6 +161,21 @@ public class MainWindowController {
         } else if (session.getState() == DebugSession.State.SUSPENDED) {
             session.resume();
         }
+    }
+
+    @FXML
+    protected void onStepOver(ActionEvent actionEvent) {
+        session.stepOver(session.getCurrentThread());
+    }
+
+    @FXML
+    protected void onStepInto(ActionEvent actionEvent) {
+        session.stepInto(session.getCurrentThread());
+    }
+
+    @FXML
+    protected void onStepOut(ActionEvent actionEvent) {
+        session.stepOut(session.getCurrentThread());
     }
 
     private TreeItem<PackageTreeItem> treeItemFactory(PackageTreeItem item) {
@@ -231,9 +267,11 @@ public class MainWindowController {
             StackFrame frame = currentThread.frame(0);
             Location location = frame.location();
             Class target = (Class) rootPackage.lookupChild(location.declaringType().name());
-            openFile(target);
-            codeAreaController.jumpToLine(location.lineNumber());
-            codeAreaController.markCurrentLine(location.lineNumber());
+            if (target != null) {
+                openFile(target);
+                codeAreaController.jumpToLine(location.lineNumber());
+                codeAreaController.markCurrentLine(location.lineNumber());
+            }
         } catch (IncompatibleThreadStateException e) {
             //e.printStackTrace();
         }

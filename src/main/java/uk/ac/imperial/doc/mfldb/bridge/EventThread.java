@@ -57,6 +57,8 @@ public class EventThread extends Thread {
                 callbacks.classPrepareEvent((ClassPrepareEvent) event);
             } else if (event instanceof BreakpointEvent) {
                 callbacks.breakpointEvent((BreakpointEvent) event);
+            } else if (event instanceof StepEvent) {
+                callbacks.stepEvent(((StepEvent) event));
             } else if (event instanceof VMStartEvent) {
                 callbacks.vmStartEvent((VMStartEvent) event);
             } else if (event instanceof VMDeathEvent) {
@@ -105,6 +107,7 @@ public class EventThread extends Thread {
         void vmStartEvent(VMStartEvent event);
         void classPrepareEvent(ClassPrepareEvent event);
         void breakpointEvent(BreakpointEvent event);
+        void stepEvent(StepEvent event);
         void vmDeathEvent(VMDeathEvent event);
         void vmDisconnectEvent(VMDisconnectEvent event);
     }

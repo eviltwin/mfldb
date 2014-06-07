@@ -29,21 +29,21 @@
                 </graphic>
             </Button>
             <Separator/>
-            <Button text="Step Over" disable="true">
+            <Button fx:id="stepOverButton" text="Step Over" onAction="#onStepOver" disable="true">
                 <graphic>
                     <ImageView>
                         <Image url="@step_over@2x.png"/>
                     </ImageView>
                 </graphic>
             </Button>
-            <Button text="Step Into" disable="true">
+            <Button fx:id="stepIntoButton" text="Step Into" onAction="#onStepInto" disable="true">
                 <graphic>
                     <ImageView>
                         <Image url="@step_into@2x.png"/>
                     </ImageView>
                 </graphic>
             </Button>
-            <Button text="Step Out" disable="true">
+            <Button fx:id="stepOutButton" text="Step Out" onAction="#onStepOut" disable="true">
                 <graphic>
                     <ImageView>
                         <Image url="@step_out@2x.png"/>
