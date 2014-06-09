@@ -37,7 +37,7 @@ public class Package implements PackageTreeItem {
 
     protected Package(String name, String qualifiedName, Path root) throws IOException {
         this.name.set(name);
-        this.qualifiedName.set(name);
+        this.qualifiedName.set(qualifiedName);
 
         DirectoryStream.Filter<Path> filter = p -> Files.isDirectory(p)
                 || p.toString().toLowerCase().endsWith(JAVA_FILE_EXTENSION)
@@ -106,7 +106,7 @@ public class Package implements PackageTreeItem {
 
         Class child = classes.get(className);
         if (child == null) {
-            String qualifiedClassName = getQualifiedName() + PACKAGE_SEPARATOR + className;
+            String qualifiedClassName = (getQualifiedName().equals("") ? "" : getQualifiedName() + PACKAGE_SEPARATOR) + className;
             child = new Class(className, qualifiedClassName);
             realChildren.add(child);
             classes.put(className, child);
