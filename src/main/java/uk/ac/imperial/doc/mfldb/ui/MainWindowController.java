@@ -152,7 +152,7 @@ public class MainWindowController {
             session.stateProperty().addListener(debugSessionStateChanged);
             session.setBreakpointResolutionSuccessCallback(this::handleBreakpointResolutionSuccess);
             session.setBreakpointResolutionFailureCallback(this::handleBreakpointResolutionFailure);
-            breakpoints.keySet().forEach(spec -> session.addBreakpoint(spec));
+            breakpoints.keySet().forEach(session::addBreakpoint);
             session.resume();
         } catch (DebugSessionException e) {
             e.printStackTrace();
