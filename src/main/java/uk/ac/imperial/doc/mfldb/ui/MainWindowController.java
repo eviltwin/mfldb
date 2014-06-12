@@ -57,7 +57,11 @@ public class MainWindowController {
     @FXML
     protected WebView codeArea;
 
+    @FXML
+    protected WebView stackAndHeap;
+
     private CodeAreaController codeAreaController;
+    private StackAndHeapController stackAndHeapController;
     private Class selectedClass;
     private DebugSession session;
     private Package rootPackage;
@@ -132,6 +136,7 @@ public class MainWindowController {
         packageTree.setRoot(treeItemFactory(rootPackage));
         codeAreaController = new CodeAreaController(codeArea);
         codeAreaController.setBreakpointToggleHandler(this::handleBreakpointToggle);
+        stackAndHeapController = new StackAndHeapController(stackAndHeap);
     }
 
     @FXML
@@ -270,6 +275,7 @@ public class MainWindowController {
                 openFile(target);
                 codeAreaController.jumpToLine(location.lineNumber());
                 codeAreaController.markCurrentLine(location.lineNumber());
+                stackAndHeapController.buildViewFor(currentThread.frames());
             }
         } catch (IncompatibleThreadStateException e) {
             //e.printStackTrace();

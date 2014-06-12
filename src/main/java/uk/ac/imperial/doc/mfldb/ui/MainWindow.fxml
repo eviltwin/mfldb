@@ -1,8 +1,8 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.*?>
 <?import javafx.scene.layout.BorderPane?>
-<?import uk.ac.imperial.doc.mfldb.ui.TreeViewWithItems?>
 <?import javafx.scene.web.WebView?>
+<?import uk.ac.imperial.doc.mfldb.ui.TreeViewWithItems?>
 <BorderPane fx:controller="uk.ac.imperial.doc.mfldb.ui.MainWindowController"
             xmlns:fx="http://javafx.com/fxml">
     <top>
@@ -56,6 +56,9 @@
         <TreeViewWithItems fx:id="packageTree"/>
     </left>
     <center>
-        <WebView fx:id="codeArea"/>
+        <SplitPane>
+            <WebView fx:id="codeArea"/>
+            <WebView fx:id="stackAndHeap"/>
+        </SplitPane>
     </center>
 </BorderPane>

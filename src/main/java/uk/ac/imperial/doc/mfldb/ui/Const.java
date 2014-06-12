@@ -39,6 +39,8 @@ final class Const {
 
     static final String CODEAREA_HTML = "CodeArea.html";
 
+    static final String STACK_AND_HEAP_HTML = "StackAndHeap.html";
+
     private Const() {
         // No instances
     }

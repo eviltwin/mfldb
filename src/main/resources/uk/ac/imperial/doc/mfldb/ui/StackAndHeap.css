@@ -1,0 +1,49 @@
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+}
+
+.frame, .object {
+  font-family: monospace;
+  border-left: 1px solid #aaaaaa;
+  padding: .5em;
+  margin: .5em;
+  margin-top: 1em;
+}
+
+.frame table, .object table {
+  padding-top: .5em;
+}
+
+.frame td, .object td {
+  padding: .5em;
+}
+
+#heap {
+  padding-left: 4em;
+}
+
+.type {
+  color: #770088;
+}
+
+.value {
+  color: #221199;
+  border-left: 1px solid #aaaaaa;
+  border-bottom: 1px solid #aaaaaa;
+}
+
+.object .id {
+  font-style: italic;
+}
+
+.node {
+  stroke: #fff;
+  stroke-width: 1.5px;
+}
+
+.link {
+  stroke: #999;
+  stroke-opacity: .6;
+}

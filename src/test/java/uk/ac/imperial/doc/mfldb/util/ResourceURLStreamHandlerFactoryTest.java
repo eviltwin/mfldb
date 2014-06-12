@@ -27,6 +27,21 @@ public class ResourceURLStreamHandlerFactoryTest {
     @Mock URLStreamHandler requireJSHandler;
 
     /**
+     * Mocked handler for D3.js urls
+     */
+    @Mock URLStreamHandler d3jsHandler;
+
+    /**
+     * Mocked handler for jQuery urls
+     */
+    @Mock URLStreamHandler jQueryHandler;
+
+    /**
+     * Mocked handler for jsPlumb urls
+     */
+    @Mock URLStreamHandler jsPlumbHandler;
+
+    /**
      * The ResourceURLStreamHandlerFactory under test
      */
     ResourceURLStreamHandlerFactory factory;
@@ -36,7 +51,7 @@ public class ResourceURLStreamHandlerFactoryTest {
      */
     @Before
     public void initialize() {
-        factory = new ResourceURLStreamHandlerFactory(codeMirrorHandler, requireJSHandler);
+        factory = new ResourceURLStreamHandlerFactory(codeMirrorHandler, requireJSHandler, d3jsHandler, jQueryHandler, jsPlumbHandler);
     }
 
     /**
@@ -61,6 +76,42 @@ public class ResourceURLStreamHandlerFactoryTest {
 
         // Then
         ASSERT.that(returned).isEqualTo(requireJSHandler);
+    }
+
+    /**
+     * Ensure that the correct URLStreamHandler is returned for URLs with the protocol "d3js"
+     */
+    @Test
+    public void shouldReturnD3js() {
+        // When
+        URLStreamHandler returned = factory.createURLStreamHandler("d3js");
+
+        // Then
+        ASSERT.that(returned).isEqualTo(d3jsHandler);
+    }
+
+    /**
+     * Ensure that the correct URLStreamHandler is returned for URLs with the protocol "jquery"
+     */
+    @Test
+    public void shouldReturnjQuery() {
+        // When
+        URLStreamHandler returned = factory.createURLStreamHandler("jquery");
+
+        // Then
+        ASSERT.that(returned).isEqualTo(jQueryHandler);
+    }
+
+    /**
+     * Ensure that the correct URLStreamHandler is returned for URLs with the protocol "jsplumb"
+     */
+    @Test
+    public void shouldReturnJsPlumb() {
+        // When
+        URLStreamHandler returned = factory.createURLStreamHandler("jsplumb");
+
+        // Then
+        ASSERT.that(returned).isEqualTo(jsPlumbHandler);
     }
 
     /**
