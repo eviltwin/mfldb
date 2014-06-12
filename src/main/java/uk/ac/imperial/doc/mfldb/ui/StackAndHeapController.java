@@ -89,7 +89,6 @@ public class StackAndHeapController {
 
     private static VariableInfo infoFromValue(String type, String name, Value value, Set<ObjectReference> heapReferences) {
         String sValue;
-        boolean isReference = false;
         if (value instanceof BooleanValue) {
             sValue = Boolean.toString(((BooleanValue) value).value());
         } else if (value instanceof ByteValue) {
@@ -112,13 +111,50 @@ public class StackAndHeapController {
             sValue = ((StringReference) value).value();
         } else if (value instanceof ObjectReference) {
             ObjectReference reference = (ObjectReference) value;
-            heapReferences.add(reference);
-            sValue = Long.toString(reference.uniqueID());
-            isReference = true;
+            return infoFromObjectReference(type, name, reference, heapReferences);
         } else if (value == null) {
             sValue = "null";
         } else {
             sValue = "UNKNOWN";
+        }
+        return new VariableInfo(type, name, sValue, false);
+    }
+
+    private static VariableInfo infoFromObjectReference(String type, String name, ObjectReference reference, Set<ObjectReference> heapReferences) {
+        String sValue = null;
+        boolean isReference = false;
+
+        // Filter out boxed primitive types...
+        switch (reference.referenceType().name()) {
+            case "java.lang.Boolean":
+                sValue = Boolean.toString(((BooleanValue) reference.getValue(reference.referenceType().fieldByName("value"))).value());
+                break;
+            case "java.lang.Byte":
+                sValue = Byte.toString(((ByteValue) reference.getValue(reference.referenceType().fieldByName("value"))).value());
+                break;
+            case "java.lang.Character":
+                sValue = Character.toString(((CharValue) reference.getValue(reference.referenceType().fieldByName("value"))).value());
+                break;
+            case "java.lang.Double":
+                sValue = Double.toString(((DoubleValue) reference.getValue(reference.referenceType().fieldByName("value"))).value());
+                break;
+            case "java.lang.Float":
+                sValue = Float.toString(((FloatValue) reference.getValue(reference.referenceType().fieldByName("value"))).value());
+                break;
+            case "java.lang.Integer":
+                sValue = Integer.toString(((IntegerValue) reference.getValue(reference.referenceType().fieldByName("value"))).value());
+                break;
+            case "java.lang.Long":
+                sValue = Long.toString(((LongValue) reference.getValue(reference.referenceType().fieldByName("value"))).value());
+                break;
+            case "java.lang.Short":
+                sValue = Short.toString(((ShortValue) reference.getValue(reference.referenceType().fieldByName("value"))).value());
+                break;
+        }
+        if (sValue == null) {
+            heapReferences.add(reference);
+            sValue = Long.toString(reference.uniqueID());
+            isReference = true;
         }
         return new VariableInfo(type, name, sValue, isReference);
     }
