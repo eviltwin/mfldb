@@ -82,7 +82,7 @@ public class StackAndHeapController {
     }
 
     private static VariableInfo infoFromField(ObjectReference reference, Field field, Set<ObjectReference> heapReferences) {
-        String type = reference.referenceType().name();
+        String type = field.typeName();
         String name = field.name();
         return infoFromValue(type, name, reference.getValue(field), heapReferences);
     }
