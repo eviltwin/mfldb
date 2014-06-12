@@ -56,6 +56,7 @@ public class StackAndHeapController {
 
         do {
             Set<ObjectReference> current = new LinkedHashSet<>(unresolvedReferences);
+            current.removeAll(processedHeap);
             unresolvedReferences.clear();
 
             heap.addAll(current.stream()
