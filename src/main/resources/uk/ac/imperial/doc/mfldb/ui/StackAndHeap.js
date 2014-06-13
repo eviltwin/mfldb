@@ -6,8 +6,8 @@ require.config({
     }
 });
 
-require(["jquery", "jsplumb", "d3"], function($, jsplumb, d3) {
-    // Monkey-patch jQuery onto the window for jsplumb's benefit...
+require(["jquery", "jsplumb", "d3"], function($, jsPlumb, d3) {
+    // Monkey-patch jQuery onto the window for jsPlumb's benefit...
     window.jQuery = $;
 
     deferredPointers = [];
@@ -22,7 +22,7 @@ require(["jquery", "jsplumb", "d3"], function($, jsplumb, d3) {
 
     shim.registerShimObject(jsShim);
 
-    jsplumb.ready(function() {
+    jsPlumb.ready(function() {
         // IMPORTANT: The styles below are *outright pinched* from python tutor and should be replaced...
         var brightRed = '#e93f34';
 
@@ -32,7 +32,7 @@ require(["jquery", "jsplumb", "d3"], function($, jsplumb, d3) {
         // We can have the body as the container, because we're just in a frame so who cares?
         jsPlumb.setContainer($("body"));
 
-        jsplumb.importDefaults({
+        jsPlumb.importDefaults({
             Endpoint: ["Dot", {radius:3}],
             EndpointStyles: [{fillStyle: connectorBaseColor}, {fillstyle: null} /* make right endpoint invisible */],
             Anchors: ["RightMiddle", "LeftMiddle"],
@@ -168,7 +168,7 @@ require(["jquery", "jsplumb", "d3"], function($, jsplumb, d3) {
 
     function drawLinks() {
         deferredPointers.forEach(function(pointer) {
-            jsplumb.connect({
+            jsPlumb.connect({
                 source: pointer.start,
                 target: "heap-object-" + pointer.target
             });
