@@ -63,9 +63,21 @@ public class StackAndHeapController {
                     .map(reference -> {
                         String id = Long.toString(reference.uniqueID());
                         String type = reference.referenceType().name();
-                        VariableInfo[] variables = reference.referenceType().visibleFields().stream()
-                                .map(field -> infoFromField(reference, field, unresolvedReferences))
-                                .toArray(VariableInfo[]::new);
+
+                        VariableInfo[] variables;
+                        if (reference instanceof ArrayReference) {
+                            ArrayReference array = (ArrayReference) reference;
+
+                            variables = new VariableInfo[array.length()];
+                            for (int i = 0; i < array.length(); i++) {
+                                // Abuse our layout a little here to get a nice looking array visualisation...
+                                variables[i] = infoFromValue("", Integer.toString(i), array.getValue(i), unresolvedReferences);
+                            }
+                        } else {
+                            variables = reference.referenceType().visibleFields().stream()
+                                    .map(field -> infoFromField(reference, field, unresolvedReferences))
+                                    .toArray(VariableInfo[]::new);
+                        }
                         return new HeapObjectInfo(id, type, variables);
                     })
                     .collect(Collectors.toList()));
