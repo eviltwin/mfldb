@@ -10,10 +10,12 @@ require(["jquery", "jsplumb", "d3"], function($, jsPlumb, d3) {
     // Monkey-patch jQuery onto the window for jsPlumb's benefit...
     window.jQuery = $;
 
-    deferredPointers = [];
+    var deferredPointers = [];
 
     var jsShim = new function() {
         this.drawStackAndHeap = function(stack, heap) {
+            jsPlumb.detachEveryConnection();
+            jsPlumb.deleteEveryEndpoint();
             drawStack(stack);
             drawHeap(heap);
             drawLinks();
@@ -173,5 +175,6 @@ require(["jquery", "jsplumb", "d3"], function($, jsPlumb, d3) {
                 target: "heap-object-" + pointer.target
             });
         });
+        deferredPointers = [];
     }
 });
