@@ -40,9 +40,16 @@ public class StackAndHeapController {
                     String function = frame.location().method().name();
                     VariableInfo[] info = null;
                     try {
-                        info = frame.visibleVariables().stream()
-                                .map(variable -> infoFromLocalVariable(frame, variable, unresolvedReferences))
-                                .toArray(VariableInfo[]::new);
+                        boolean includeThis = !frame.location().method().isStatic() && !frame.location().method().isNative();
+                        int offset = includeThis ? 1 : 0;
+                        List<LocalVariable> variables = frame.visibleVariables();
+                        info = new VariableInfo[variables.size() + offset];
+                        if (includeThis) {
+                            info[0] = infoFromObjectReference(frame.thisObject().referenceType().name(), "this", frame.thisObject(), unresolvedReferences);
+                        }
+                        for (int i = 0; i < variables.size(); i++) {
+                            info[i + offset] = infoFromLocalVariable(frame, variables.get(i), unresolvedReferences);
+                        }
                     } catch (AbsentInformationException e) {
                         //e.printStackTrace();
                     }
