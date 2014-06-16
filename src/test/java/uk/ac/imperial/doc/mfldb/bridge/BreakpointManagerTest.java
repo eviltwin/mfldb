@@ -1,6 +1,5 @@
 package uk.ac.imperial.doc.mfldb.bridge;
 
-import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.Location;
 import com.sun.jdi.event.ClassPrepareEvent;
 import com.sun.jdi.request.BreakpointRequest;
@@ -92,7 +91,7 @@ public class BreakpointManagerTest {
      * Tests that the BreakpointManager will defer the addition of a breakpoint for a class that isn't loaded yet.
      */
     @Test
-    public void defersUntilLater() throws LineNotFoundException, AbsentInformationException {
+    public void defersUntilLater() {
         // Given
         TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
         BreakpointSpec spec = new BreakpointSpec(c.name, 67);
@@ -110,7 +109,7 @@ public class BreakpointManagerTest {
      * Tests the deferral and then resolution of a single breakpoint.
      */
     @Test
-    public void defersAndResolves() throws LineNotFoundException, AbsentInformationException {
+    public void defersAndResolves() {
         // Given
         TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
         BreakpointSpec spec = new BreakpointSpec(c.name, 67);
@@ -134,7 +133,7 @@ public class BreakpointManagerTest {
      * identical ClassPrepareEvents could make their way to the BreakpointManager.
      */
     @Test
-    public void doesNotResolveTwice() throws LineNotFoundException, AbsentInformationException {
+    public void doesNotResolveTwice() {
         // Given
         TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
         BreakpointSpec spec = new BreakpointSpec(c.name, 67);
@@ -157,7 +156,7 @@ public class BreakpointManagerTest {
      * Tests the immediate resolution of a breakpoint for a class which has already been prepared.
      */
     @Test
-    public void resolvesImmediately() throws LineNotFoundException, AbsentInformationException {
+    public void resolvesImmediately() {
         // Given
         TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
         BreakpointSpec spec = new BreakpointSpec(c.name, 67);
@@ -176,7 +175,7 @@ public class BreakpointManagerTest {
      * Tests the deferral of two breakpoints and then their subsequent resolution.
      */
     @Test
-    public void defersAndResolvesTwo() throws LineNotFoundException, AbsentInformationException {
+    public void defersAndResolvesTwo() {
         // Given
         TestClass c1 = mockVM.addTestClass("foo.bar.baz", 107);
         TestClass c2 = mockVM.addTestClass("foo.bar.qux", 204);
@@ -205,7 +204,7 @@ public class BreakpointManagerTest {
      * Tests the deferral of two breakpoints and then their subsequent resolution in the opposite order.
      */
     @Test
-    public void defersAndResolvesTwoReversed() throws LineNotFoundException, AbsentInformationException {
+    public void defersAndResolvesTwoReversed() {
         // Given
         TestClass c1 = mockVM.addTestClass("foo.bar.baz", 107);
         TestClass c2 = mockVM.addTestClass("foo.bar.qux", 204);
@@ -234,7 +233,7 @@ public class BreakpointManagerTest {
      * Tests that only one ClassPrepareRequest is created for two breakpoints in the same unprepared class.
      */
     @Test
-    public void defersTwoWithOneRequest() throws LineNotFoundException, AbsentInformationException {
+    public void defersTwoWithOneRequest() {
         // Given
         TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
         BreakpointSpec spec1 = new BreakpointSpec(c.name, 67);
@@ -254,7 +253,7 @@ public class BreakpointManagerTest {
      * Tests that both deferred breakpoints for a single class are resolved once the class is prepared.
      */
     @Test
-    public void defersAndResolvesTwoWithOneRequest() throws LineNotFoundException, AbsentInformationException {
+    public void defersAndResolvesTwoWithOneRequest() {
         // Given
         TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
         BreakpointSpec spec1 = new BreakpointSpec(c.name, 67);
@@ -278,7 +277,7 @@ public class BreakpointManagerTest {
      * Tests that removing a breakpoint before it is resolved will cause the ClassPrepareRequest to be deleted too.
      */
     @Test
-    public void removeDeferredDeletesRequest() throws LineNotFoundException, AbsentInformationException {
+    public void removeDeferredDeletesRequest() {
         // Given
         TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
         BreakpointSpec spec1 = new BreakpointSpec(c.name, 67);
@@ -300,7 +299,7 @@ public class BreakpointManagerTest {
      * Tests that removing one breakpoint before both are resolved will not prevent the second from being resolved.
      */
     @Test
-    public void removeOneDeferredStillResolvesSecond() throws LineNotFoundException, AbsentInformationException {
+    public void removeOneDeferredStillResolvesSecond() {
         // Given
         TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
         BreakpointSpec spec1 = new BreakpointSpec(c.name, 67);
@@ -324,7 +323,7 @@ public class BreakpointManagerTest {
      * Tests that removing a breakpoint after it is resolved will delete the breakpoint request.
      */
     @Test
-    public void removeAfterResolved() throws LineNotFoundException, AbsentInformationException {
+    public void removeAfterResolved() {
         // Given
         TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
         BreakpointSpec spec1 = new BreakpointSpec(c.name, 67);
@@ -347,7 +346,7 @@ public class BreakpointManagerTest {
      * Tests that removing a breakpoint inserted after a class is already loaded works as expected.
      */
     @Test
-    public void removeAfterInsertedWhenAlreadyResolved() throws LineNotFoundException, AbsentInformationException {
+    public void removeAfterInsertedWhenAlreadyResolved() {
         // Given
         TestClass c = mockVM.addTestClass("foo.bar.baz", 107);
         BreakpointSpec spec1 = new BreakpointSpec(c.name, 67);

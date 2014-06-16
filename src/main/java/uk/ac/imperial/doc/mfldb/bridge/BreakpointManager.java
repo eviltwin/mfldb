@@ -69,8 +69,6 @@ class BreakpointManager {
      * VirtualMachine.
      *
      * @param spec The specification of the breakpoint to be added.
-     * @throws LineNotFoundException
-     * @throws AbsentInformationException
      */
     void addBreakpoint(BreakpointSpec spec) {
         try {
@@ -120,8 +118,6 @@ class BreakpointManager {
      * Resolves any deferred breakpoints waiting on this class.
      *
      * @param event Event describing which class should have its deferred breakpoints added.
-     * @throws LineNotFoundException      If the line specified in the breakpoint couldn't be found.
-     * @throws AbsentInformationException If the VirtualMachine didn't have the required information.
      */
     public void resolveDeferred(ClassPrepareEvent event) {
         Collection<BreakpointSpec> specs = deferredBreakpoints.removeAll(event.referenceType().name());
