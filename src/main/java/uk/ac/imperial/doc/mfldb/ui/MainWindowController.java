@@ -276,6 +276,8 @@ public class MainWindowController {
                 codeAreaController.jumpToLine(location.lineNumber());
                 codeAreaController.markCurrentLine(location.lineNumber());
                 stackAndHeapController.buildViewFor(currentThread.frames());
+            } else {
+                session.stepInto(currentThread);
             }
         } catch (IncompatibleThreadStateException e) {
             //e.printStackTrace();
